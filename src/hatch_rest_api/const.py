@@ -21,13 +21,13 @@ class RestMiniAudioTrack(Enum):
 
 
 REST_MINI_AUDIO_TRACKS = [
-  RestMiniAudioTrack.NONE,
-  RestMiniAudioTrack.WhiteNoise,
-  RestMiniAudioTrack.Ocean,
-  RestMiniAudioTrack.Rain,
-  RestMiniAudioTrack.Water,
-  RestMiniAudioTrack.Wind,
-  RestMiniAudioTrack.Birds,
-  RestMiniAudioTrack.Dryer,
-  RestMiniAudioTrack.Heartbeat,
+    RestMiniAudioTrack.NONE,
+    RestMiniAudioTrack.WhiteNoise,
+    RestMiniAudioTrack.Ocean,
+    RestMiniAudioTrack.Rain,
+    RestMiniAudioTrack.Water,
+    RestMiniAudioTrack.Wind,
+    RestMiniAudioTrack.Birds,
+    RestMiniAudioTrack.Dryer,
+    RestMiniAudioTrack.Heartbeat,
 ]

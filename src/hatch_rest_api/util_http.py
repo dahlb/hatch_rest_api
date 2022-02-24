@@ -14,7 +14,10 @@ def request_with_logging(func):
             request_message = request_message + f"headers: {headers}"
         json_body = kwargs.get("json_body")
         if json_body is not None:
-            request_message = request_message + f"sending {url} request with {clean_dictionary_for_logging(json_body)}"
+            request_message = (
+                request_message
+                + f"sending {url} request with {clean_dictionary_for_logging(json_body)}"
+            )
         _LOGGER.debug(request_message)
         response = await func(*args, **kwargs)
         _LOGGER.debug(

@@ -41,12 +41,16 @@ async def testing():
         aws_token = await api.token(auth_token=token)
         logger.debug(aws_token)
         aws_http: AwsHttp = AwsHttp(api.api_session)
-        aws_credentials = await aws_http.aws_credentials(region=aws_token["region"], identityId=aws_token["identityId"], aws_token=aws_token["token"])
+        aws_credentials = await aws_http.aws_credentials(
+            region=aws_token["region"],
+            identityId=aws_token["identityId"],
+            aws_token=aws_token["token"],
+        )
         logger.debug(aws_credentials["Credentials"])
         credentials_provider = auth.AwsCredentialsProvider.new_static(
             aws_credentials["Credentials"]["AccessKeyId"],
             aws_credentials["Credentials"]["SecretKey"],
-            session_token=aws_credentials["Credentials"]["SessionToken"]
+            session_token=aws_credentials["Credentials"]["SessionToken"],
         )
         event_loop_group = io.EventLoopGroup(1)
         host_resolver = io.DefaultHostResolver(event_loop_group)
@@ -60,7 +64,7 @@ async def testing():
             keep_alive_secs=30,
             client_bootstrap=client_bootstrap,
             endpoint=endpoint,
-            client_id="hatch_rest_api"
+            client_id="hatch_rest_api",
         )
 
         try:
@@ -70,20 +74,25 @@ async def testing():
 
             shadow_client = IotShadowClient(mqtt_connection)
             print(device_name)
-            rest_mini = RestMini(device_name=device_name, thing_name=thing_name, shadow_client=shadow_client)
+            rest_mini = RestMini(
+                device_name=device_name,
+                thing_name=thing_name,
+                shadow_client=shadow_client,
+            )
 
             def output():
                 print(rest_mini)
+
             rest_mini.register_callback(output)
-    #        print(rest_mini.shadow_value)
+            #        print(rest_mini.shadow_value)
 
             # vehicles = await api.get_vehicles(session_id=session_id)
             # identifier = vehicles["vehicleSummary"][0]["vehicleIdentifier"]
             # key = vehicles["vehicleSummary"][0]["vehicleKey"]
             # await api.get_cached_vehicle_status(session_id=session_id, vehicle_key=key)
             # await api.lock(session_id=session_id, vehicle_key=key)
-#            rest_mini.set_audio_track(RestMiniAudioTrack.Ocean)
-#            rest_mini.set_volume(8)
+            #            rest_mini.set_audio_track(RestMiniAudioTrack.Ocean)
+            #            rest_mini.set_volume(8)
             rest_mini.set_audio_track(RestMiniAudioTrack.NONE)
             Event().wait()
         finally:

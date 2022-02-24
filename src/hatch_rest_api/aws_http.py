@@ -31,13 +31,17 @@ class AwsHttp:
         json_body = {
             "IdentityId": identityId,
             "Logins": {
-              'cognito-identity.amazonaws.com': aws_token,
+                "cognito-identity.amazonaws.com": aws_token,
             },
         }
         headers = {
             "content-type": "application/x-amz-json-1.1",
-            "X-Amz-Target": 'AWSCognitoIdentityService.GetCredentialsForIdentity',
+            "X-Amz-Target": "AWSCognitoIdentityService.GetCredentialsForIdentity",
         }
-        response: ClientResponse = await self._post_request_with_logging_and_errors_raised(url=url, json_body=json_body, headers=headers)
+        response: ClientResponse = (
+            await self._post_request_with_logging_and_errors_raised(
+                url=url, json_body=json_body, headers=headers
+            )
+        )
         data = await response.read()
         return json.loads(data)

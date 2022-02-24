@@ -16,9 +16,7 @@ def request_with_logging_and_errors(func):
         response_json = await response.json()
         if response_json["status"] == "success":
             return response
-        if (
-                response_json["errorCode"] == 1001
-        ):
+        if response_json["errorCode"] == 1001:
             _LOGGER.debug(f"error: session invalid")
             raise AuthError
         raise ClientError(f"api error:{response_json['message']}")
@@ -62,27 +60,41 @@ class Hatch:
             "email": email,
             "password": password,
         }
-        response: ClientResponse = await self._post_request_with_logging_and_errors_raised(url=url, json_body=json_body)
+        response: ClientResponse = (
+            await self._post_request_with_logging_and_errors_raised(
+                url=url, json_body=json_body
+            )
+        )
         response_json = await response.json()
         return response_json["token"]
 
     async def member(self, auth_token: str):
         url = API_URL + "service/app/v2/member"
-        response: ClientResponse = await self._get_request_with_logging_and_errors_raised(url=url, auth_token=auth_token)
+        response: ClientResponse = (
+            await self._get_request_with_logging_and_errors_raised(
+                url=url, auth_token=auth_token
+            )
+        )
         response_json = await response.json()
         return response_json["payload"]
 
     async def iot_devices(self, auth_token: str):
         url = API_URL + "service/app/iotDevice/v2/fetch?iotProducts=restMini"
-        params = {
-            "iotProducts": "restMini"
-        }
-        response: ClientResponse = await self._get_request_with_logging_and_errors_raised(url=url, auth_token=auth_token, params=params)
+        params = {"iotProducts": "restMini"}
+        response: ClientResponse = (
+            await self._get_request_with_logging_and_errors_raised(
+                url=url, auth_token=auth_token, params=params
+            )
+        )
         response_json = await response.json()
         return response_json["payload"]
 
     async def token(self, auth_token: str):
         url = API_URL + "service/app/restPlus/token/v1/fetch"
-        response: ClientResponse = await self._get_request_with_logging_and_errors_raised(url=url, auth_token=auth_token)
+        response: ClientResponse = (
+            await self._get_request_with_logging_and_errors_raised(
+                url=url, auth_token=auth_token
+            )
+        )
         response_json = await response.json()
         return response_json["payload"]
