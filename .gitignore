@@ -4,5 +4,5 @@
 **@eaDir
 venv/
 dist/
-src/kia_hyundai_api.egg-info/
+src/hatch_rest_api.egg-info/
 build/
