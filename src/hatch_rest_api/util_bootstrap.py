@@ -4,6 +4,7 @@ from awscrt import io
 from awscrt.auth import AwsCredentialsProvider
 from awsiot.mqtt_connection_builder import websockets_with_default_aws_signing
 from awsiot.iotshadow import IotShadowClient
+from aiohttp import ClientSession
 
 from .hatch import Hatch
 from .aws_http import AwsHttp
@@ -12,9 +13,8 @@ from .rest_mini import RestMini
 _LOGGER = logging.getLogger(__name__)
 
 
-async def get_rest_minis(email: str, password: str, api: Hatch = None):
-    if api is None:
-        api = Hatch()
+async def get_rest_minis(email: str, password: str, client_session: ClientSession = None):
+    api = Hatch(client_session=client_session)
     token = await api.login(email=email, password=password)
     iot_devices = await api.iot_devices(auth_token=token)
     aws_token = await api.token(auth_token=token)
