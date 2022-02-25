@@ -33,6 +33,8 @@ class RestMini(CallbacksMixin):
         self.shadow_client = shadow_client
         self.lock = Lock()
 
+        def update_shadow_accepted(response: UpdateShadowResponse):
+            self._on_update_shadow_accepted(response)
         (
             update_accepted_subscribed_future,
             _,
@@ -41,16 +43,19 @@ class RestMini(CallbacksMixin):
                 thing_name=self.thing_name
             ),
             qos=mqtt.QoS.AT_LEAST_ONCE,
-            callback=self._on_update_shadow_accepted,
+            callback=update_shadow_accepted,
         )
         update_accepted_subscribed_future.result()
+
+        def on_get_shadow_accepted(response: GetShadowResponse):
+            self._on_get_shadow_accepted(response)
         (
             get_accepted_subscribed_future,
             _,
         ) = shadow_client.subscribe_to_get_shadow_accepted(
             request=iotshadow.GetShadowSubscriptionRequest(thing_name=self.thing_name),
             qos=mqtt.QoS.AT_LEAST_ONCE,
-            callback=self._on_get_shadow_accepted,
+            callback=on_get_shadow_accepted,
         )
         get_accepted_subscribed_future.result()
         self.refresh()
@@ -66,6 +71,7 @@ class RestMini(CallbacksMixin):
         publish_get_future.result()
 
     def _update_local_state(self, state):
+        _LOGGER.debug(f"update local state: {self.device_name}, {state}")
         if safely_get_json_value(state, "deviceInfo.f"):
             self.firmware_version = safely_get_json_value(state, "deviceInfo.f")
         if safely_get_json_value(state, "current.sound.id"):
@@ -81,7 +87,7 @@ class RestMini(CallbacksMixin):
         self.publish_updates()
 
     def _on_update_shadow_accepted(self, response: UpdateShadowResponse):
-        _LOGGER.debug(f"update RESPONSE: {response}")
+        _LOGGER.debug(f"update {self.device_name}, RESPONSE: {response}")
         if response.version < self.document_version:
             return
         if response.state:
@@ -90,7 +96,7 @@ class RestMini(CallbacksMixin):
                 self._update_local_state(response.state.reported)
 
     def _on_get_shadow_accepted(self, response: GetShadowResponse):
-        _LOGGER.debug(f"get RESPONSE: {response.state}")
+        _LOGGER.debug(f"get {self.device_name}, RESPONSE: {response}")
         if response.version < self.document_version:
             return
         if response.state:

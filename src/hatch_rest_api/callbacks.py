@@ -20,5 +20,6 @@ class CallbacksMixin:
     def publish_updates(self) -> None:
         if not hasattr(self, "_callbacks"):
             self._setup_callbacks()
+        _LOGGER.debug(f"{self.device_name} publishing updates")
         for callback in self._callbacks:
             callback()
