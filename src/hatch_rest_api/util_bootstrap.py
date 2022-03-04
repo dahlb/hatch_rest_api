@@ -55,4 +55,4 @@ async def get_rest_minis(email: str, password: str, client_session: ClientSessio
         )
 
     rest_minis = map(create_rest_mini, iot_devices)
-    return api, mqtt_connection, list(rest_minis)
+    return api, mqtt_connection, list(rest_minis), aws_credentials["Credentials"]['Expiration']

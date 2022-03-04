@@ -7,9 +7,6 @@ assignees: ''
 
 ---
 
-**Region and Brand of car**
-
-
 **Describe the bug**
 A clear and concise description of what the bug is.
 
