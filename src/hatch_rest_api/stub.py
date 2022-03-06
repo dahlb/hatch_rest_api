@@ -32,16 +32,18 @@ async def testing():
 
         def output():
             print(f"******-{rest_minis[0]}")
+
         rest_minis[0].register_callback(output)
 
         def output2():
             print(f"******-{rest_minis[1]}")
+
         rest_minis[1].register_callback(output2)
 
         #        print(rest_mini.shadow_value)
         #            rest_mini.set_audio_track(RestMiniAudioTrack.Ocean)
         #            rest_mini.set_volume(8)
-#        rest_mini.set_audio_track(RestMiniAudioTrack.NONE)
+        #        rest_mini.set_audio_track(RestMiniAudioTrack.NONE)
         Event().wait()
     finally:
         if mqtt_connection:

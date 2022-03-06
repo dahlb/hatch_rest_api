@@ -35,6 +35,7 @@ class RestMini(CallbacksMixin):
 
         def update_shadow_accepted(response: UpdateShadowResponse):
             self._on_update_shadow_accepted(response)
+
         (
             update_accepted_subscribed_future,
             _,
@@ -49,6 +50,7 @@ class RestMini(CallbacksMixin):
 
         def on_get_shadow_accepted(response: GetShadowResponse):
             self._on_get_shadow_accepted(response)
+
         (
             get_accepted_subscribed_future,
             _,

@@ -13,7 +13,13 @@ from .rest_mini import RestMini
 _LOGGER = logging.getLogger(__name__)
 
 
-async def get_rest_minis(email: str, password: str, client_session: ClientSession = None):
+async def get_rest_minis(
+    email: str,
+    password: str,
+    client_session: ClientSession = None,
+    on_connection_interrupted=None,
+    on_connection_resumed=None,
+):
     api = Hatch(client_session=client_session)
     token = await api.login(email=email, password=password)
     iot_devices = await api.iot_devices(auth_token=token)
@@ -41,6 +47,8 @@ async def get_rest_minis(email: str, password: str, client_session: ClientSessio
         client_bootstrap=client_bootstrap,
         endpoint=endpoint,
         client_id="hatch_rest_api",
+        on_connection_interrupted=on_connection_interrupted,
+        on_connection_resumed=on_connection_resumed,
     )
     connected_future = mqtt_connection.connect()
     connected_future.result()
@@ -55,4 +63,9 @@ async def get_rest_minis(email: str, password: str, client_session: ClientSessio
         )
 
     rest_minis = map(create_rest_mini, iot_devices)
-    return api, mqtt_connection, list(rest_minis), aws_credentials["Credentials"]['Expiration']
+    return (
+        api,
+        mqtt_connection,
+        list(rest_minis),
+        aws_credentials["Credentials"]["Expiration"],
+    )
