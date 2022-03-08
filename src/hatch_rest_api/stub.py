@@ -28,23 +28,27 @@ async def testing():
     mqtt_connection = None
     api = None
     try:
-        api, mqtt_connection, rest_minis = await get_rest_minis(email, password)
+        count = 0
+        while True:
+            count = count + 1
+            api, mqtt_connection, rest_minis, expiration = await get_rest_minis(email, password)
 
-        def output():
-            print(f"******-{rest_minis[0]}")
+            def output():
+                print(f"{count}******-{rest_minis[0]}")
 
-        rest_minis[0].register_callback(output)
+            rest_minis[0].register_callback(output)
 
-        def output2():
-            print(f"******-{rest_minis[1]}")
+            def output2():
+                print(f"{count}******-{rest_minis[1]}")
 
-        rest_minis[1].register_callback(output2)
+            rest_minis[1].register_callback(output2)
 
-        #        print(rest_mini.shadow_value)
-        #            rest_mini.set_audio_track(RestMiniAudioTrack.Ocean)
-        #            rest_mini.set_volume(8)
-        #        rest_mini.set_audio_track(RestMiniAudioTrack.NONE)
-        Event().wait()
+            #        print(rest_mini.shadow_value)
+            #            rest_mini.set_audio_track(RestMiniAudioTrack.Ocean)
+            rest_minis[1].set_volume(15)
+            #        rest_mini.set_audio_track(RestMiniAudioTrack.NONE)
+            await asyncio.sleep(60)
+            mqtt_connection.disconnect().result()
     finally:
         if mqtt_connection:
             mqtt_connection.disconnect().result()
