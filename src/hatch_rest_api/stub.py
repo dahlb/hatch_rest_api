@@ -31,7 +31,9 @@ async def testing():
         count = 0
         while True:
             count = count + 1
-            api, mqtt_connection, rest_minis, expiration = await get_rest_minis(email, password)
+            api, mqtt_connection, rest_minis, expiration = await get_rest_minis(
+                email, password
+            )
 
             def output():
                 print(f"{count}******-{rest_minis[0]}")
