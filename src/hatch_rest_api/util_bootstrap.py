@@ -45,7 +45,7 @@ async def get_rest_minis(
         keep_alive_secs=30,
         client_bootstrap=client_bootstrap,
         endpoint=endpoint,
-        client_id="hatch_rest_api",
+        client_id=f"hatch_rest_api/{email}",
         on_connection_interrupted=on_connection_interrupted,
         on_connection_resumed=on_connection_resumed,
     )
