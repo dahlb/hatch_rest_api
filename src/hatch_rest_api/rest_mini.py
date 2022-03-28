@@ -12,7 +12,7 @@ from awsiot.iotshadow import (
 
 from .util import convert_to_percentage, safely_get_json_value, convert_from_percentage
 from .callbacks import CallbacksMixin
-from .const import RestMiniAudioTrack, REST_MINI_AUDIO_TRACKS
+from .const import RestMiniAudioTrack
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class RestMini(CallbacksMixin):
 
         (
             update_accepted_subscribed_future,
-            _,
+            unsubscribe_topic_to_update_shadow_accepted,
         ) = shadow_client.subscribe_to_update_shadow_accepted(
             request=iotshadow.UpdateShadowSubscriptionRequest(
                 thing_name=self.thing_name
@@ -46,19 +46,21 @@ class RestMini(CallbacksMixin):
             callback=update_shadow_accepted,
         )
         update_accepted_subscribed_future.result()
+        _LOGGER.debug(f"unsubscribe_topic_to_update_shadow_accepted: {unsubscribe_topic_to_update_shadow_accepted}")
 
         def on_get_shadow_accepted(response: GetShadowResponse):
             self._on_get_shadow_accepted(response)
 
         (
             get_accepted_subscribed_future,
-            _,
+            unsubscribe_topic_to_get_shadow_accepted,
         ) = shadow_client.subscribe_to_get_shadow_accepted(
             request=iotshadow.GetShadowSubscriptionRequest(thing_name=self.thing_name),
             qos=mqtt.QoS.AT_LEAST_ONCE,
             callback=on_get_shadow_accepted,
         )
         get_accepted_subscribed_future.result()
+        _LOGGER.debug(f"unsubscribe_topic_to_update_shadow_accepted: {unsubscribe_topic_to_get_shadow_accepted}")
         self.refresh()
 
     def refresh(self):
