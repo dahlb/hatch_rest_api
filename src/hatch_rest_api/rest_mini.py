@@ -9,7 +9,6 @@ from awsiot.iotshadow import (
     UpdateShadowRequest,
     ShadowState,
 )
-from threading import Lock
 
 from .util import convert_to_percentage, safely_get_json_value, convert_from_percentage
 from .callbacks import CallbacksMixin
@@ -31,7 +30,7 @@ class RestMini(CallbacksMixin):
         self.device_name = device_name
         self.thing_name = thing_name
         self.shadow_client = shadow_client
-        self.lock = Lock()
+        _LOGGER.debug(f"creating rest mini: {device_name}")
 
         def update_shadow_accepted(response: UpdateShadowResponse):
             self._on_update_shadow_accepted(response)
@@ -64,13 +63,13 @@ class RestMini(CallbacksMixin):
 
     def refresh(self):
         _LOGGER.debug("Requesting current shadow state...")
-        publish_get_future = self.shadow_client.publish_get_shadow(
+        result = self.shadow_client.publish_get_shadow(
             request=iotshadow.GetShadowRequest(
                 thing_name=self.thing_name, client_token=None
             ),
             qos=mqtt.QoS.AT_LEAST_ONCE,
-        )
-        publish_get_future.result()
+        ).result()
+        _LOGGER.debug(f"result: {result}")
 
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")

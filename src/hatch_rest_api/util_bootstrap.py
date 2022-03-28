@@ -42,7 +42,6 @@ async def get_rest_minis(
     mqtt_connection = websockets_with_default_aws_signing(
         region="us-west-2",
         credentials_provider=credentials_provider,
-        clean_session=True,
         keep_alive_secs=30,
         client_bootstrap=client_bootstrap,
         endpoint=endpoint,
@@ -50,8 +49,8 @@ async def get_rest_minis(
         on_connection_interrupted=on_connection_interrupted,
         on_connection_resumed=on_connection_resumed,
     )
-    connected_future = mqtt_connection.connect()
-    connected_future.result()
+    mqtt_connection.connect().result()
+    _LOGGER.debug(f"mqtt connection connected")
 
     shadow_client = IotShadowClient(mqtt_connection)
 
