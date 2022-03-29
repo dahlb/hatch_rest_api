@@ -20,6 +20,8 @@ async def get_rest_minis(
     on_connection_interrupted=None,
     on_connection_resumed=None,
 ):
+    if _LOGGER.isEnabledFor(logging.DEBUG):
+        io.init_logging(io.LogLevel.Debug, "hatch_rest_api-aws_mqtt.log")
     api = Hatch(client_session=client_session)
     token = await api.login(email=email, password=password)
     iot_devices = await api.iot_devices(auth_token=token)

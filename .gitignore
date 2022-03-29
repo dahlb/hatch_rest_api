@@ -6,3 +6,4 @@ venv/
 dist/
 src/hatch_rest_api.egg-info/
 build/
+aws_mqtt.log
