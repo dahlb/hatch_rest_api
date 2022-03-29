@@ -19,7 +19,7 @@ setup(
     long_description_content_type="text/markdown",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
-    install_requires=["aiohttp>=3.8.1", "awsiotsdk==1.9.2"],
+    install_requires=["aiohttp>=3.8.1", "awsiotsdk==1.9.3"],
     keywords=["hatch", "rest-mini", "api"],
     classifiers=[
         "Development Status :: 4 - Beta",
