@@ -20,6 +20,21 @@ class RestMiniAudioTrack(Enum):
     Birds = 10131
 
 
+class RestPlusAudioTrack(Enum):
+    NONE = 0
+    Stream = 2
+    PinkNoise = 3
+    Dryer = 4
+    Ocean = 5
+    Wind = 6
+    Rain = 7
+    Bird = 9
+    Crickets = 10
+    Brahms = 11
+    Twinkle = 13
+    RockABye = 14
+
+
 REST_MINI_AUDIO_TRACKS = [
     RestMiniAudioTrack.NONE,
     RestMiniAudioTrack.WhiteNoise,
@@ -30,4 +45,20 @@ REST_MINI_AUDIO_TRACKS = [
     RestMiniAudioTrack.Birds,
     RestMiniAudioTrack.Dryer,
     RestMiniAudioTrack.Heartbeat,
+]
+
+
+REST_PLUS_AUDIO_TRACKS = [
+    RestPlusAudioTrack.NONE,
+    RestPlusAudioTrack.Stream,
+    RestPlusAudioTrack.PinkNoise,
+    RestPlusAudioTrack.Dryer,
+    RestPlusAudioTrack.Ocean,
+    RestPlusAudioTrack.Wind,
+    RestPlusAudioTrack.Rain,
+    RestPlusAudioTrack.Bird,
+    RestPlusAudioTrack.Crickets,
+    RestPlusAudioTrack.Brahms,
+    RestPlusAudioTrack.Twinkle,
+    RestPlusAudioTrack.RockABye,
 ]

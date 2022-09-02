@@ -9,11 +9,12 @@ from aiohttp import ClientSession
 from .hatch import Hatch
 from .aws_http import AwsHttp
 from .rest_mini import RestMini
+from .rest_plus import RestPlus
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def get_rest_minis(
+async def get_rest_devices(
     email: str,
     password: str,
     client_session: ClientSession = None,
@@ -56,17 +57,24 @@ async def get_rest_minis(
 
     shadow_client = IotShadowClient(mqtt_connection)
 
-    def create_rest_mini(iot_device):
-        return RestMini(
-            device_name=iot_device["name"],
-            thing_name=iot_device["thingName"],
-            shadow_client=shadow_client,
-        )
+    def create_rest_devices(iot_device):
+        if iot_device["product"] == "restPlus":
+            return RestPlus(
+                device_name=iot_device["name"],
+                thing_name=iot_device["thingName"],
+                shadow_client=shadow_client,
+            )
+        else:
+            return RestMini(
+                device_name=iot_device["name"],
+                thing_name=iot_device["thingName"],
+                shadow_client=shadow_client,
+            )
 
-    rest_minis = map(create_rest_mini, iot_devices)
+    rest_devices = map(create_rest_devices, iot_devices)
     return (
         api,
         mqtt_connection,
-        list(rest_minis),
+        list(rest_devices),
         aws_credentials["Credentials"]["Expiration"],
     )

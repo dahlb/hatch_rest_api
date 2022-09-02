@@ -36,6 +36,14 @@ def convert_to_percentage(value: int):
     return floor((value * 100) / MAX_IOT_VALUE)
 
 
+def convert_from_hex(percentage: int):
+    return ceil((percentage / 255) * MAX_IOT_VALUE)
+
+
+def convert_to_hex(value: int):
+    return floor((value * 255) / MAX_IOT_VALUE)
+
+
 def safely_get_json_value(json, key, callable_to_cast=None):
     value = json
     for x in key.split("."):
