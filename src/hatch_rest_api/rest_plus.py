@@ -9,7 +9,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class RestPlus(ShadowClientSubscriberMixin):
     firmware_version: str = None
-    audio_track: int = None
+    audio_track: RestPlusAudioTrack = None
     volume: int = None
 
     is_on: bool = None
@@ -56,7 +56,7 @@ class RestPlus(ShadowClientSubscriberMixin):
 
     @property
     def is_playing(self):
-        return self.audio_track == RestPlusAudioTrack.NONE.value
+        return self.is_on and self.audio_track != RestPlusAudioTrack.NONE.value
 
     def __repr__(self):
         return {

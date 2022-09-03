@@ -10,7 +10,7 @@ _LOGGER = logging.getLogger(__name__)
 class RestMini(ShadowClientSubscriberMixin):
     firmware_version: str = None
     is_playing: bool = None
-    audio_track: int = None
+    audio_track: RestMiniAudioTrack = None
     volume: int = None
 
     def __repr__(self):
