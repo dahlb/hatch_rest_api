@@ -52,6 +52,7 @@ class RestPlus(ShadowClientSubscriberMixin):
         self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
         self.is_on = safely_get_json_value(state, "isPowered", bool)
         self.is_online = safely_get_json_value(state, "connected", bool)
+        _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
 
     @property
