@@ -32,17 +32,17 @@ class RestMini(ShadowClientSubscriberMixin):
 
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
-        if safely_get_json_value(state, "connected"):
+        if safely_get_json_value(state, "connected") is not None:
             self.is_online = safely_get_json_value(state, "connected")
-        if safely_get_json_value(state, "deviceInfo.f"):
+        if safely_get_json_value(state, "deviceInfo.f") is not None:
             self.firmware_version = safely_get_json_value(state, "deviceInfo.f")
-        if safely_get_json_value(state, "current.sound.id"):
+        if safely_get_json_value(state, "current.sound.id") is not None:
             self.audio_track = RestMiniAudioTrack(
                 safely_get_json_value(state, "current.sound.id")
             )
-        if safely_get_json_value(state, "current.playing"):
+        if safely_get_json_value(state, "current.playing") is not None:
             self.is_playing = safely_get_json_value(state, "current.playing") != "none"
-        if safely_get_json_value(state, "current.sound.v"):
+        if safely_get_json_value(state, "current.sound.v") is not None:
             self.volume = convert_to_percentage(
                 safely_get_json_value(state, "current.sound.v")
             )

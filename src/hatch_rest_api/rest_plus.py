@@ -26,33 +26,33 @@ class RestPlus(ShadowClientSubscriberMixin):
 
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
-        if safely_get_json_value(state, "deviceInfo.f"):
+        if safely_get_json_value(state, "deviceInfo.f") is not None:
             self.firmware_version = safely_get_json_value(state, "deviceInfo.f")
-        if safely_get_json_value(state, "deviceInfo.b", int):
+        if safely_get_json_value(state, "deviceInfo.b") is not None:
             self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
-        if safely_get_json_value(state, "isPowered", bool):
+        if safely_get_json_value(state, "isPowered") is not None:
             self.is_on = safely_get_json_value(state, "isPowered", bool)
-        if safely_get_json_value(state, "connected"):
+        if safely_get_json_value(state, "connected") is not None:
             self.is_online = safely_get_json_value(state, "connected", bool)
-        if safely_get_json_value(state, "a.t"):
+        if safely_get_json_value(state, "a.t") is not None:
             self.audio_track = RestPlusAudioTrack(
                 safely_get_json_value(state, "a.t", int)
             )
-        if safely_get_json_value(state, "a.v"):
+        if safely_get_json_value(state, "a.v") is not None:
             self.volume = convert_to_percentage(
                 safely_get_json_value(state, "a.v", int)
             )
-        if safely_get_json_value(state, "c.R"):
+        if safely_get_json_value(state, "c.R") is not None:
             self.color_random = safely_get_json_value(state, "c.R", bool)
-        if safely_get_json_value(state, "c.W"):
+        if safely_get_json_value(state, "c.W") is not None:
             self.color_white = safely_get_json_value(state, "c.W", bool)
-        if safely_get_json_value(state, "c.r"):
+        if safely_get_json_value(state, "c.r") is not None:
             self.red = convert_to_hex(safely_get_json_value(state, "c.r", int))
-        if safely_get_json_value(state, "c.g"):
+        if safely_get_json_value(state, "c.g") is not None:
             self.green = convert_to_hex(safely_get_json_value(state, "c.g", int))
-        if safely_get_json_value(state, "c.b"):
+        if safely_get_json_value(state, "c.b") is not None:
             self.blue = convert_to_hex(safely_get_json_value(state, "c.b", int))
-        if safely_get_json_value(state, "c.i"):
+        if safely_get_json_value(state, "c.i") is not None:
             self.brightness = convert_to_percentage(
                 safely_get_json_value(state, "c.i", int)
             )
