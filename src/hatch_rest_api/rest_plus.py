@@ -21,9 +21,19 @@ class RestPlus(ShadowClientSubscriberMixin):
     blue: int = None
     brightness: int = None
 
+    color_random: bool = None
+    color_white: bool = None
+
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
-        self.firmware_version = safely_get_json_value(state, "deviceInfo.f")
+        if safely_get_json_value(state, "deviceInfo.f"):
+            self.firmware_version = safely_get_json_value(state, "deviceInfo.f")
+        if safely_get_json_value(state, "deviceInfo.b", int):
+            self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
+        if safely_get_json_value(state, "isPowered", bool):
+            self.is_on = safely_get_json_value(state, "isPowered", bool)
+        if safely_get_json_value(state, "connected"):
+            self.is_online = safely_get_json_value(state, "connected", bool)
         if safely_get_json_value(state, "a.t"):
             self.audio_track = RestPlusAudioTrack(
                 safely_get_json_value(state, "a.t", int)
@@ -32,26 +42,28 @@ class RestPlus(ShadowClientSubscriberMixin):
             self.volume = convert_to_percentage(
                 safely_get_json_value(state, "a.v", int)
             )
-        if safely_get_json_value(state, "c"):
+        if safely_get_json_value(state, "c.R"):
+            self.color_random = safely_get_json_value(state, "c.R", bool)
+        if safely_get_json_value(state, "c.W"):
+            self.color_white = safely_get_json_value(state, "c.W", bool)
+        if safely_get_json_value(state, "c.r"):
             self.red = convert_to_hex(safely_get_json_value(state, "c.r", int))
+        if safely_get_json_value(state, "c.g"):
             self.green = convert_to_hex(safely_get_json_value(state, "c.g", int))
+        if safely_get_json_value(state, "c.b"):
             self.blue = convert_to_hex(safely_get_json_value(state, "c.b", int))
-            if (
-                self.red == 0
-                and self.green == 0
-                and self.blue == 0
-                and not safely_get_json_value(state, "c.R")
-                and not safely_get_json_value(state, "c.W")
-                or safely_get_json_value(state, "c.i", int) is None
-            ):
-                self.brightness = 0
-            else:
-                self.brightness = convert_to_percentage(
-                    safely_get_json_value(state, "c.i", int)
-                )
-        self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
-        self.is_on = safely_get_json_value(state, "isPowered", bool)
-        self.is_online = safely_get_json_value(state, "connected", bool)
+        if safely_get_json_value(state, "c.i"):
+            self.brightness = convert_to_percentage(
+                safely_get_json_value(state, "c.i", int)
+            )
+        if (
+            self.red == 0
+            and self.green == 0
+            and self.blue == 0
+            and not self.color_random
+            and not self.color_white
+        ):
+            self.brightness = 0
         _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
 
@@ -64,12 +76,12 @@ class RestPlus(ShadowClientSubscriberMixin):
             "device_name": self.device_name,
             "thing_name": self.thing_name,
             "firmware_version": self.firmware_version,
+            "is_online": self.is_online,
+            "is_on": self.is_on,
+            "battery_level": self.battery_level,
             "is_playing": self.is_playing,
             "audio_track": self.audio_track,
             "volume": self.volume,
-            "is_on": self.is_on,
-            "battery_level": self.battery_level,
-            "is_online": self.is_online,
             "red": self.red,
             "green": self.green,
             "blue": self.blue,

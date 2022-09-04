@@ -9,6 +9,8 @@ _LOGGER = logging.getLogger(__name__)
 
 class RestMini(ShadowClientSubscriberMixin):
     firmware_version: str = None
+    is_online: bool = None
+
     is_playing: bool = None
     audio_track: RestMiniAudioTrack = None
     volume: int = None
@@ -17,6 +19,7 @@ class RestMini(ShadowClientSubscriberMixin):
         return {
             "device_name": self.device_name,
             "thing_name": self.thing_name,
+            "is_online": self.is_online,
             "firmware_version": self.firmware_version,
             "is_playing": self.is_playing,
             "audio_track": self.audio_track,
@@ -29,6 +32,8 @@ class RestMini(ShadowClientSubscriberMixin):
 
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
+        if safely_get_json_value(state, "connected"):
+            self.is_online = safely_get_json_value(state, "connected")
         if safely_get_json_value(state, "deviceInfo.f"):
             self.firmware_version = safely_get_json_value(state, "deviceInfo.f")
         if safely_get_json_value(state, "current.sound.id"):
