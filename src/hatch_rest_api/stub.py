@@ -35,6 +35,7 @@ async def testing():
 
         for iot_device in iot_devices:
             if isinstance(iot_device, RestPlus):
+
                 def output():
                     print(f"******-{iot_device}")
 

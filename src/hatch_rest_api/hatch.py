@@ -80,7 +80,7 @@ class Hatch:
 
     async def iot_devices(self, auth_token: str):
         url = API_URL + "service/app/iotDevice/v2/fetch"
-        params = {"iotProducts": ["restMini", "restPlus"]}
+        params = {"iotProducts": ["restMini", "restPlus", "riot"]}
         response: ClientResponse = (
             await self._get_request_with_logging_and_errors_raised(
                 url=url, auth_token=auth_token, params=params
@@ -94,6 +94,29 @@ class Hatch:
         response: ClientResponse = (
             await self._get_request_with_logging_and_errors_raised(
                 url=url, auth_token=auth_token
+            )
+        )
+        response_json = await response.json()
+        return response_json["payload"]
+
+    async def favorites(self, auth_token: str, mac: str):
+        url = API_URL + "service/app/routine/v2/fetch"
+        params = {"macAddress": mac, "types": "favorite"}
+        response: ClientResponse = (
+            await self._get_request_with_logging_and_errors_raised(
+                url=url, auth_token=auth_token, params=params
+            )
+        )
+        response_json = await response.json()
+        return response_json["payload"]
+
+    async def content(self, auth_token: str, product: str, content: list):
+        # content options are ["sound", "color", "windDown"]
+        url = API_URL + "service/app/content/v1/fetchByProduct"
+        params = {"product": product, "contentTypes": content}
+        response: ClientResponse = (
+            await self._get_request_with_logging_and_errors_raised(
+                url=url, auth_token=auth_token, params=params
             )
         )
         response_json = await response.json()
