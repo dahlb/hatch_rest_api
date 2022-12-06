@@ -18,11 +18,16 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
     document_version: int = -1
 
     def __init__(
-        self, device_name: str, thing_name: str, shadow_client: IotShadowClient
+        self,
+        device_name: str,
+        thing_name: str,
+        shadow_client: IotShadowClient,
+        favorites: list = [],
     ):
         self.device_name = device_name
         self.thing_name = thing_name
         self.shadow_client = shadow_client
+        self.favorites = favorites
         _LOGGER.debug(f"creating {self.__class__.__name__}: {device_name}")
 
         def update_shadow_accepted(response: UpdateShadowResponse):

@@ -1,6 +1,12 @@
 import logging
 
-from .util import convert_to_percentage, safely_get_json_value, convert_from_percentage, convert_from_hex, convert_to_hex
+from .util import (
+    convert_to_percentage,
+    safely_get_json_value,
+    convert_from_percentage,
+    convert_from_hex,
+    convert_to_hex,
+)
 from .shadow_client_subscriber import ShadowClientSubscriberMixin
 from .const import RestPlusAudioTrack
 

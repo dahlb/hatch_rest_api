@@ -10,6 +10,7 @@ from .hatch import Hatch
 from .aws_http import AwsHttp
 from .rest_mini import RestMini
 from .rest_plus import RestPlus
+from .riot import RestIot
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,6 +28,9 @@ async def get_rest_devices(
     token = await api.login(email=email, password=password)
     iot_devices = await api.iot_devices(auth_token=token)
     aws_token = await api.token(auth_token=token)
+    favorites_map = await _get_favorites_for_all_v2_devices(api, token, iot_devices)
+    # This call will fetch sounds for a v2 device but the official app doesn't appear to use these sounds
+    # sounds = await _get_sound_content_for_v2_devices(api, token, iot_devices)
     aws_http: AwsHttp = AwsHttp(api.api_session)
     aws_credentials = await aws_http.aws_credentials(
         region=aws_token["region"],
@@ -64,6 +68,13 @@ async def get_rest_devices(
                 thing_name=iot_device["thingName"],
                 shadow_client=shadow_client,
             )
+        elif iot_device["product"] == "riot":
+            return RestIot(
+                device_name=iot_device["name"],
+                thing_name=iot_device["thingName"],
+                shadow_client=shadow_client,
+                favorites=favorites_map[iot_device["macAddress"]],
+            )
         else:
             return RestMini(
                 device_name=iot_device["name"],
@@ -78,3 +89,26 @@ async def get_rest_devices(
         list(rest_devices),
         aws_credentials["Credentials"]["Expiration"],
     )
+
+
+async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
+    mac_to_fav = {}
+    for device in iot_devices:
+        if device["product"] == "riot":
+            mac = device["macAddress"]
+            favorites = await api.favorites(auth_token=token, mac=mac)
+            _LOGGER.debug(f"Favorites for {mac}: {favorites}")
+            mac_to_fav[mac] = favorites
+    return mac_to_fav
+
+
+async def _get_sound_content_for_v2_devices(api, token, iot_devices):
+    sounds = []
+    for device in iot_devices:
+        if device["product"] == "riot" and not sounds:
+            content = await api.content(
+                auth_token=token, product="riot", content=["sound"]
+            )
+            sounds = content["contentItems"]
+            _LOGGER.debug(f"Sounds: {sounds}")
+    return sounds
