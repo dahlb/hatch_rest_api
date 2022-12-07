@@ -68,7 +68,7 @@ async def get_rest_devices(
                 thing_name=iot_device["thingName"],
                 shadow_client=shadow_client,
             )
-        elif iot_device["product"] == "riot":
+        elif iot_device["product"] in ["riot", "riotPlus"]:
             return RestIot(
                 device_name=iot_device["name"],
                 thing_name=iot_device["thingName"],
@@ -94,7 +94,7 @@ async def get_rest_devices(
 async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
     mac_to_fav = {}
     for device in iot_devices:
-        if device["product"] == "riot":
+        if device["product"] in ["riot", "riotPlus"]:
             mac = device["macAddress"]
             favorites = await api.favorites(auth_token=token, mac=mac)
             _LOGGER.debug(f"Favorites for {mac}: {favorites}")
@@ -105,7 +105,7 @@ async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
 async def _get_sound_content_for_v2_devices(api, token, iot_devices):
     sounds = []
     for device in iot_devices:
-        if device["product"] == "riot" and not sounds:
+        if device["product"] in ["riot", "riotPlus"] and not sounds:
             content = await api.content(
                 auth_token=token, product="riot", content=["sound"]
             )

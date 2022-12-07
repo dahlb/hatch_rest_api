@@ -1,5 +1,6 @@
 # run with "python3 src/hatch_rest_api/stub.py"
 import logging
+import time
 import asyncio
 from threading import Event
 
@@ -12,6 +13,7 @@ sys.path.append(str(path_root))
 from src.hatch_rest_api.util_bootstrap import get_rest_devices
 from src.hatch_rest_api.const import RestPlusAudioTrack
 from src.hatch_rest_api.rest_plus import RestPlus
+from src.hatch_rest_api.riot import RestIot
 import json
 
 logger = logging.getLogger("src.hatch_rest_api")
@@ -34,6 +36,21 @@ async def testing():
         )
 
         for iot_device in iot_devices:
+            if isinstance(iot_device, RestIot):
+
+                def output():
+                    print(f"******-{iot_device}")
+
+                iot_device.register_callback(output)
+
+                print(
+                    "\n\n\n*********** Available favorites on this device *************\n\n\n"
+                )
+                for fav in iot_device.favorite_names():
+                    iot_device.set_favorite(fav)
+                    print(f"\n\n\nPlaying {fav} for 5 seconds\n\n\n")
+                    time.sleep(5)
+
             if isinstance(iot_device, RestPlus):
 
                 def output():
