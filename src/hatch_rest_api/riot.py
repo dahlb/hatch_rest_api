@@ -8,7 +8,6 @@ from .util import (
     convert_to_hex,
 )
 from .shadow_client_subscriber import ShadowClientSubscriberMixin
-from .const import RestPlusAudioTrack
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,6 +20,7 @@ class RestIot(ShadowClientSubscriberMixin):
     is_online: bool = False
     current_playing: str = "none"
 
+    battery_level: int = None
     color_id: int = 9998
     sound_id: int = 19998
     red: int = 0
@@ -29,7 +29,8 @@ class RestIot(ShadowClientSubscriberMixin):
     white: int = 0
     brightness: int = 0
 
-    # Used to save the last light state so turning on the light will have a state to go to when no color data is provided.
+    # Used to save the last light state so turning on the light will have a state to go
+    # to when no color data is provided.
     # Defaults to 50% everything
     last_light_on_colors = {
         "r": convert_to_hex(32768),
@@ -43,6 +44,8 @@ class RestIot(ShadowClientSubscriberMixin):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
         if safely_get_json_value(state, "deviceInfo.f") is not None:
             self.firmware_version = safely_get_json_value(state, "deviceInfo.f")
+        if safely_get_json_value(state, "deviceInfo.b") is not None:
+            self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
         if safely_get_json_value(state, "current.playing") is not None:
             self.current_playing = safely_get_json_value(state, "current.playing")
         if safely_get_json_value(state, "connected") is not None:
@@ -93,6 +96,7 @@ class RestIot(ShadowClientSubscriberMixin):
             "firmware_version": self.firmware_version,
             "is_online": self.is_online,
             "is_on": self.is_on,
+            "battery_level": self.battery_level,
             "is_playing": self.is_playing,
             "volume": self.volume,
             "red": self.red,
@@ -121,37 +125,24 @@ class RestIot(ShadowClientSubscriberMixin):
         names = []
         for favorite in self.favorites:
             if active_only and favorite["active"]:
-                names.append(favorite["name"])
+                names.append(f"{favorite['name']}-{favorite['id']}")
             else:
-                names.append(favorite["name"])
+                names.append(f"{favorite['name']}-{favorite['id']}")
         return names
 
     def set_volume(self, percentage: int):
         _LOGGER.debug(f"Setting volume: {percentage}")
         self._update({"current": {"sound": {"v": convert_from_percentage(percentage)}}})
 
-    def _get_favorite_by_name(self, name: str):
-        for favorite in self.favorites:
-            if favorite["name"] == name:
-                return favorite
-
-    def _get_favorite_by_id(self, fav_id: str):
-        for favorite in self.favorites:
-            if favorite["id"] == fav_id:
-                return favorite
-
-    def set_favorite(self, favorite_name: str):
-        _LOGGER.debug(f"Setting favorite: {favorite_name}")
-        fav = self._get_favorite_by_name(favorite_name)
-        self._update({"current": {"srId": fav["id"], "step": 1, "playing": "routine"}})
+    # favorite_name_id is expected to be a string of name-id since name alone isn't unique
+    def set_favorite(self, favorite_name_id: str):
+        _LOGGER.debug(f"Setting favorite: {favorite_name_id}")
+        fav_id = int(favorite_name_id.split("-")[1])
+        self._update({"current": {"srId": fav_id, "step": 1, "playing": "routine"}})
 
     def turn_off(self):
         _LOGGER.debug("Turning off sound")
         self._update({"current": {"srId": 0, "step": 0, "playing": "none"}})
-
-    def play_first_favorite(self):
-        first_fav = self.favorites[0]["name"]
-        self.set_favorite(first_fav)
 
     def set_on(self, on: bool):
         # Set the color to the stored defaults if turning on
@@ -183,6 +174,25 @@ class RestIot(ShadowClientSubscriberMixin):
                 brightness = self.last_light_on_colors["i"]
         else:
             new_color_id = 9998
+        # If there is no sound playing, and you want to turn on the light the playing value has to be set to remote
+        if self.current_playing == "none" and new_color_id == 9999:
+            self._update(
+                {
+                    "current": {
+                        "srId": 0,
+                        "step": 0,
+                        "playing": "remote",
+                        "color": {
+                            "id": new_color_id,
+                            "r": convert_from_hex(red),
+                            "g": convert_from_hex(green),
+                            "b": convert_from_hex(blue),
+                            "i": convert_from_percentage(brightness),
+                            "w": white,
+                        }
+                    }
+                }
+            )
         self._update(
             {
                 "current": {

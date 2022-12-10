@@ -80,7 +80,7 @@ class Hatch:
 
     async def iot_devices(self, auth_token: str):
         url = API_URL + "service/app/iotDevice/v2/fetch"
-        params = {"iotProducts": ["restMini", "restPlus", "riot"]}
+        params = {"iotProducts": ["restMini", "restPlus", "riot", "riotPlus"]}
         response: ClientResponse = (
             await self._get_request_with_logging_and_errors_raised(
                 url=url, auth_token=auth_token, params=params
