@@ -75,7 +75,7 @@ class RestPlus(ShadowClientSubscriberMixin):
 
     @property
     def is_playing(self):
-        return self.is_on and self.audio_track != RestPlusAudioTrack.NONE.value
+        return self.is_on and self.audio_track != RestPlusAudioTrack.NONE
 
     def __repr__(self):
         return {
