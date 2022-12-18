@@ -56,8 +56,12 @@ async def get_rest_devices(
         on_connection_interrupted=on_connection_interrupted,
         on_connection_resumed=on_connection_resumed,
     )
-    mqtt_connection.connect().result()
-    _LOGGER.debug(f"mqtt connection connected")
+    try:
+        mqtt_connection.connect().result()
+        _LOGGER.debug(f"mqtt connection connected")
+    except Exception as e:
+        _LOGGER.error('MQTT connection failed with exception {}'.format(e))
+        raise e
 
     shadow_client = IotShadowClient(mqtt_connection)
 
