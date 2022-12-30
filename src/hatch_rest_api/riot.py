@@ -29,17 +29,6 @@ class RestIot(ShadowClientSubscriberMixin):
     white: int = 0
     brightness: int = 0
 
-    # Used to save the last light state so turning on the light will have a state to go
-    # to when no color data is provided.
-    # Defaults to 50% everything
-    last_light_on_colors = {
-        "r": convert_to_hex(32768),
-        "g": convert_to_hex(32768),
-        "b": convert_to_hex(32768),
-        "w": 0,
-        "i": convert_to_percentage(32768),
-    }
-
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
         if safely_get_json_value(state, "deviceInfo.f") is not None:
@@ -76,18 +65,8 @@ class RestIot(ShadowClientSubscriberMixin):
             self.brightness = convert_to_percentage(
                 safely_get_json_value(state, "current.color.i", int)
             )
-        # 9998 == off so only update the previous light state when it is something other than off
-        if self.color_id != 9998:
-            self._update_last_light_on_color()
         _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
-
-    def _update_last_light_on_color(self):
-        self.last_light_on_colors["r"] = self.red
-        self.last_light_on_colors["g"] = self.green
-        self.last_light_on_colors["b"] = self.blue
-        self.last_light_on_colors["w"] = self.white
-        self.last_light_on_colors["i"] = self.brightness
 
     def __repr__(self):
         return {
@@ -145,10 +124,18 @@ class RestIot(ShadowClientSubscriberMixin):
         _LOGGER.debug("Turning off sound")
         self._update({"current": {"srId": 0, "step": 0, "playing": "none"}})
 
-    def set_on(self, on: bool):
-        # Set the color to the stored defaults if turning on
-        _LOGGER.debug(f"Setting on: {on}")
-        self.set_color(0, 0, 0, 0, 0, on)
+    def turn_light_off(self):
+        _LOGGER.debug(f"Turning light off")
+        # 9999 = custom color 9998 = turn off
+        self._update(
+            {
+                "current": {
+                    "color": {
+                        "id": 9998
+                    }
+                }
+            }
+        )
 
     def set_color(
         self,
@@ -156,27 +143,15 @@ class RestIot(ShadowClientSubscriberMixin):
         green: int,
         blue: int,
         white: int = 0,
-        brightness: int = 0,
-        on: bool = True,
+        brightness: int = 0
     ):
         # 9999 = custom color 9998 = turn off
         new_color_id: int = 9999
         _LOGGER.debug(
-            f"red: {red} green: {green} blue: {blue} brightness: {brightness} white: {white} on: {on}"
+            f"red: {red} green: {green} blue: {blue} brightness: {brightness} white: {white}"
         )
-        if on:
-            if red == 0 and green == 0 and blue == 0 and white == 0:
-                # We need to default turn on, we can use the last light color we have saved
-                red = self.last_light_on_colors["r"]
-                green = self.last_light_on_colors["g"]
-                blue = self.last_light_on_colors["b"]
-                white = self.last_light_on_colors["w"]
-            if brightness == 0:
-                brightness = self.last_light_on_colors["i"]
-        else:
-            new_color_id = 9998
         # If there is no sound playing, and you want to turn on the light the playing value has to be set to remote
-        if self.current_playing == "none" and new_color_id == 9999:
+        if self.current_playing == "none":
             self._update(
                 {
                     "current": {
