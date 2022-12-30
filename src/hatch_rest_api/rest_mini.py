@@ -19,6 +19,7 @@ class RestMini(ShadowClientSubscriberMixin):
         return {
             "device_name": self.device_name,
             "thing_name": self.thing_name,
+            "mac": self.mac,
             "is_online": self.is_online,
             "firmware_version": self.firmware_version,
             "is_playing": self.is_playing,

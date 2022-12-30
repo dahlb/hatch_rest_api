@@ -70,12 +70,14 @@ async def get_rest_devices(
             return RestPlus(
                 device_name=iot_device["name"],
                 thing_name=iot_device["thingName"],
+                mac=iot_device["macAddress"],
                 shadow_client=shadow_client,
             )
         elif iot_device["product"] in ["riot", "riotPlus"]:
             return RestIot(
                 device_name=iot_device["name"],
                 thing_name=iot_device["thingName"],
+                mac=iot_device["macAddress"],
                 shadow_client=shadow_client,
                 favorites=favorites_map[iot_device["macAddress"]],
             )
@@ -83,6 +85,7 @@ async def get_rest_devices(
             return RestMini(
                 device_name=iot_device["name"],
                 thing_name=iot_device["thingName"],
+                mac=iot_device["macAddress"],
                 shadow_client=shadow_client,
             )
 

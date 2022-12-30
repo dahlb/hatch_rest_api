@@ -21,11 +21,13 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         self,
         device_name: str,
         thing_name: str,
+        mac: str,
         shadow_client: IotShadowClient,
         favorites: list = [],
     ):
         self.device_name = device_name
         self.thing_name = thing_name
+        self.mac = mac
         self.shadow_client = shadow_client
         self.favorites = favorites
         _LOGGER.debug(f"creating {self.__class__.__name__}: {device_name}")

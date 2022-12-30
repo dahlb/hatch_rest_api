@@ -81,6 +81,7 @@ class RestPlus(ShadowClientSubscriberMixin):
         return {
             "device_name": self.device_name,
             "thing_name": self.thing_name,
+            "mac": self.mac,
             "firmware_version": self.firmware_version,
             "is_online": self.is_online,
             "is_on": self.is_on,
