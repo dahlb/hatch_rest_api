@@ -28,6 +28,11 @@ class RestIot(ShadowClientSubscriberMixin):
     blue: int = 0
     white: int = 0
     brightness: int = 0
+    charging_status: int = None
+    clock: int = None
+    flags: int = None
+    toddler_lock: bool = False
+    toddler_lock_mode: str = None
 
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
@@ -35,6 +40,12 @@ class RestIot(ShadowClientSubscriberMixin):
             self.firmware_version = safely_get_json_value(state, "deviceInfo.f")
         if safely_get_json_value(state, "deviceInfo.b") is not None:
             self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
+        if safely_get_json_value(state, "deviceInfo.powerStatus") is not None:
+            self.charging_status = safely_get_json_value(state, "deviceInfo.powerStatus", int)
+        if safely_get_json_value(state, "toddlerLockOn") is not None:
+            self.toddler_lock = safely_get_json_value(state, "toddlerLockOn", bool)
+        if safely_get_json_value(state, "toddlerLock.turnOnMode") is not None:
+            self.toddler_lock_mode = safely_get_json_value(state, "toddlerLock.turnOnMode", str)
         if safely_get_json_value(state, "current.playing") is not None:
             self.current_playing = safely_get_json_value(state, "current.playing")
         if safely_get_json_value(state, "connected") is not None:
@@ -65,6 +76,12 @@ class RestIot(ShadowClientSubscriberMixin):
             self.brightness = convert_to_percentage(
                 safely_get_json_value(state, "current.color.i", int)
             )
+        if safely_get_json_value(state, "clock.i") is not None:
+            self.clock = convert_to_percentage(
+                safely_get_json_value(state, "clock.i", int)
+            )
+        if safely_get_json_value(state, "clock.flags") is not None:
+            self.flags = safely_get_json_value(state, "clock.flags", int)    
         _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
 
@@ -84,6 +101,11 @@ class RestIot(ShadowClientSubscriberMixin):
             "blue": self.blue,
             "brightness": self.brightness,
             "document_version": self.document_version,
+            "charging_status": self.charging_status,
+            "clock": self.clock,
+            "flags": self.flags,
+            "toddler_lock": self.toddler_lock, 
+            "toddler_lock_mode": self.toddler_lock_mode, 
         }
 
     def __str__(self):
@@ -100,6 +122,10 @@ class RestIot(ShadowClientSubscriberMixin):
     @property
     def is_playing(self):
         return self.sound_id != 19998
+    
+    @property
+    def is_clock_on(self):
+        return self.flags != 0
 
     def favorite_names(self, active_only: bool = True):
         names = []
@@ -113,6 +139,15 @@ class RestIot(ShadowClientSubscriberMixin):
     def set_volume(self, percentage: int):
         _LOGGER.debug(f"Setting volume: {percentage}")
         self._update({"current": {"sound": {"v": convert_from_percentage(percentage)}}})
+
+    def set_toddler_lock(self, toddler_lock: bool, mode: str):
+        _LOGGER.debug(f"Setting Toddler Lock: toddlerLockOn: {toddler_lock}, toddlerLock.turnOnMode: {mode}")
+        self._update({"toddlerLockOn": toddler_lock})
+        self._update({"toddlerLock": {"turnOnMode": mode}})
+
+    def set_clock(self, flags: int, brightness: int = 0):
+        _LOGGER.debug(f"Setting clock on: {flags} and {brightness}")
+        self._update({"clock": {"flags": flags, "i": convert_from_percentage(brightness)}})
 
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
     def set_favorite(self, favorite_name_id: str):
