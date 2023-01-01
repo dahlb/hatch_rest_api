@@ -117,7 +117,7 @@ class RestIot(ShadowClientSubscriberMixin):
 
     @property
     def is_light_on(self):
-        return self.color_id != 9998
+        return self.color_id != 9998 and self.color_id != 0
 
     @property
     def is_playing(self):
