@@ -117,7 +117,7 @@ class RestIot(ShadowClientSubscriberMixin):
 
     @property
     def is_light_on(self):
-        return self.color_id != 9998
+        return self.color_id != 9998 and self.color_id != 0
 
     @property
     def is_playing(self):
@@ -140,10 +140,10 @@ class RestIot(ShadowClientSubscriberMixin):
         _LOGGER.debug(f"Setting volume: {percentage}")
         self._update({"current": {"sound": {"v": convert_from_percentage(percentage)}}})
 
-    # Expected string value for mode is "never" or "always" as hatch defaults to a timed toddler lock so "never" would not automatically turn off the toddler lock.
-    def set_toddler_lock(self, toddler_lock: bool, mode: str):
-        _LOGGER.debug(f"Setting Toddler Lock: toddlerLockOn: {toddler_lock}, toddlerLock.turnOnMode: {mode}")
-        self._update({"toddlerLockOn": toddler_lock})
+    # Expected string value for mode is "never" or "always". The API also supports "custom" for defining a time range
+    def set_toddler_lock(self, on: bool):
+        _LOGGER.debug(f"Setting Toddler On Lock: {on}")
+        mode = "always" if on else "never"
         self._update({"toddlerLock": {"turnOnMode": mode}})
 
     def set_clock(self, flags: int, brightness: int = 0):

@@ -48,8 +48,14 @@ async def testing():
                 )
                 for fav in iot_device.favorite_names():
                     iot_device.set_favorite(fav)
-                    print(f"\n\n\nPlaying {fav} for 5 seconds\n\n\n")
-                    time.sleep(5)
+                    print(f"\n\n\nPlaying {fav} for 10 seconds\n\n\n")
+                    time.sleep(10)
+
+                print(f"\n\n\nTurning toddler lock on for 30 seconds")
+                iot_device.set_toddler_lock(True)
+                time.sleep(30)
+                print(f"\n\n\nTurning toddler lock off")
+                iot_device.set_toddler_lock(False)
 
             if isinstance(iot_device, RestPlus):
 
