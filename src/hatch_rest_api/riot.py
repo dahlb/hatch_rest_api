@@ -28,7 +28,7 @@ class RestIot(ShadowClientSubscriberMixin):
     blue: int = 0
     white: int = 0
     brightness: int = 0
-    charging_status: int = None
+    charging_status: int = None #Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base 
     clock: int = None
     flags: int = None
     toddler_lock: bool = False
@@ -140,6 +140,7 @@ class RestIot(ShadowClientSubscriberMixin):
         _LOGGER.debug(f"Setting volume: {percentage}")
         self._update({"current": {"sound": {"v": convert_from_percentage(percentage)}}})
 
+    # Expected string value for mode is "never" or "always" as hatch defaults to a timed toddler lock so "never" would not automatically turn off the toddler lock.
     def set_toddler_lock(self, toddler_lock: bool, mode: str):
         _LOGGER.debug(f"Setting Toddler Lock: toddlerLockOn: {toddler_lock}, toddlerLock.turnOnMode: {mode}")
         self._update({"toddlerLockOn": toddler_lock})
