@@ -168,13 +168,18 @@ class RestIot(ShadowClientSubscriberMixin):
         _LOGGER.debug(f"Turning light off")
         # 9999 = custom color 9998 = turn off
         self._update(
-            {
-                "current": {
-                    "color": {
-                        "id": 9998
+                {
+                    "current": {
+                        "playing": "none",
+                        "color": {
+                            "id": 9998,
+                            "r": 0,
+                            "g": 0,
+                            "b": 0,
+                            "w": 0,
+                        }
                     }
                 }
-            }
         )
 
     def set_color(
