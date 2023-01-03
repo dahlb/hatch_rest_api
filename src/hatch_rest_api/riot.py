@@ -167,6 +167,21 @@ class RestIot(ShadowClientSubscriberMixin):
     def turn_light_off(self):
         _LOGGER.debug(f"Turning light off")
         # 9999 = custom color 9998 = turn off
+        # if favorite is playing then light can be turned off without turning off sound
+        if self.current_playing == "routine":
+            self._update(
+                {
+                    "current": {
+                        "color": {
+                            "id": 9998,
+                            "r": 0,
+                            "g": 0,
+                            "b": 0,
+                            "w": 0,
+                        }
+                    }
+                }
+            )
         self._update(
                 {
                     "current": {
@@ -180,8 +195,7 @@ class RestIot(ShadowClientSubscriberMixin):
                         }
                     }
                 }
-        )
-
+            )
     def set_color(
         self,
         red: int,
