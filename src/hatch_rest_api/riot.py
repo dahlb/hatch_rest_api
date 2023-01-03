@@ -182,7 +182,8 @@ class RestIot(ShadowClientSubscriberMixin):
                     }
                 }
             )
-        self._update(
+        if self.current_playing == "remote":
+            self._update(
                 {
                     "current": {
                         "playing": "none",
