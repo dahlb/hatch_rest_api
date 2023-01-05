@@ -148,11 +148,17 @@ class RestIot(ShadowClientSubscriberMixin):
 
     def set_clock(self, brightness: int = 0):
         _LOGGER.debug(f"Setting clock on: {brightness}")
-        self._update({"clock": {"flags": 32768, "i": convert_from_percentage(brightness)}})
+        if self.flags == 2048:
+            self._update({"clock": {"flags": 34816, "i": convert_from_percentage(brightness)}}) 
+        else:
+            self._update({"clock": {"flags": 32768, "i": convert_from_percentage(brightness)}})    
 
     def turn_clock_off(self):
         _LOGGER.debug(f"Turn off clock")
-        self._update({"clock": {"flags": 0, "i": 655}})
+        if self.flags == 34816:
+            self._update({"clock": {"flags": 2048, "i": 655}})
+        else:
+            self._update({"clock": {"flags": 0, "i": 655}})
 
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
     def set_favorite(self, favorite_name_id: str):
