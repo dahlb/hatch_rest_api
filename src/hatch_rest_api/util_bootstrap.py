@@ -60,7 +60,7 @@ async def get_rest_devices(
         mqtt_connection.connect().result()
         _LOGGER.debug(f"mqtt connection connected")
     except Exception as e:
-        _LOGGER.error(f'MQTT connection failed with exception {e}')
+        _LOGGER.error(f"MQTT connection failed with exception {e}")
         raise e
 
     shadow_client = IotShadowClient(mqtt_connection)

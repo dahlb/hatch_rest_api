@@ -28,7 +28,7 @@ class RestIot(ShadowClientSubscriberMixin):
     blue: int = 0
     white: int = 0
     brightness: int = 0
-    charging_status: int = None #Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base 
+    charging_status: int = None  # Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base
     clock: int = None
     flags: int = None
     toddler_lock: bool = False
@@ -41,11 +41,15 @@ class RestIot(ShadowClientSubscriberMixin):
         if safely_get_json_value(state, "deviceInfo.b") is not None:
             self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
         if safely_get_json_value(state, "deviceInfo.powerStatus") is not None:
-            self.charging_status = safely_get_json_value(state, "deviceInfo.powerStatus", int)
+            self.charging_status = safely_get_json_value(
+                state, "deviceInfo.powerStatus", int
+            )
         if safely_get_json_value(state, "toddlerLockOn") is not None:
             self.toddler_lock = safely_get_json_value(state, "toddlerLockOn", bool)
         if safely_get_json_value(state, "toddlerLock.turnOnMode") is not None:
-            self.toddler_lock_mode = safely_get_json_value(state, "toddlerLock.turnOnMode", str)
+            self.toddler_lock_mode = safely_get_json_value(
+                state, "toddlerLock.turnOnMode", str
+            )
         if safely_get_json_value(state, "current.playing") is not None:
             self.current_playing = safely_get_json_value(state, "current.playing")
         if safely_get_json_value(state, "connected") is not None:
@@ -81,7 +85,7 @@ class RestIot(ShadowClientSubscriberMixin):
                 safely_get_json_value(state, "clock.i", int)
             )
         if safely_get_json_value(state, "clock.flags") is not None:
-            self.flags = safely_get_json_value(state, "clock.flags", int)    
+            self.flags = safely_get_json_value(state, "clock.flags", int)
         _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
 
@@ -104,8 +108,8 @@ class RestIot(ShadowClientSubscriberMixin):
             "charging_status": self.charging_status,
             "clock": self.clock,
             "flags": self.flags,
-            "toddler_lock": self.toddler_lock, 
-            "toddler_lock_mode": self.toddler_lock_mode, 
+            "toddler_lock": self.toddler_lock,
+            "toddler_lock_mode": self.toddler_lock_mode,
         }
 
     def __str__(self):
@@ -122,7 +126,7 @@ class RestIot(ShadowClientSubscriberMixin):
     @property
     def is_playing(self):
         return self.sound_id != 19998
-    
+
     @property
     def is_clock_on(self):
         return self.flags != 0
@@ -148,7 +152,9 @@ class RestIot(ShadowClientSubscriberMixin):
 
     def set_clock(self, brightness: int = 0):
         _LOGGER.debug(f"Setting clock on: {brightness}")
-        self._update({"clock": {"flags": 32768, "i": convert_from_percentage(brightness)}})
+        self._update(
+            {"clock": {"flags": 32768, "i": convert_from_percentage(brightness)}}
+        )
 
     def turn_clock_off(self):
         _LOGGER.debug(f"Turn off clock")
@@ -193,17 +199,13 @@ class RestIot(ShadowClientSubscriberMixin):
                             "g": 0,
                             "b": 0,
                             "w": 0,
-                        }
+                        },
                     }
                 }
             )
+
     def set_color(
-        self,
-        red: int,
-        green: int,
-        blue: int,
-        white: int = 0,
-        brightness: int = 0
+        self, red: int, green: int, blue: int, white: int = 0, brightness: int = 0
     ):
         # 9999 = custom color 9998 = turn off
         new_color_id: int = 9999
@@ -225,7 +227,7 @@ class RestIot(ShadowClientSubscriberMixin):
                             "b": convert_from_hex(blue),
                             "i": convert_from_percentage(brightness),
                             "w": white,
-                        }
+                        },
                     }
                 }
             )
