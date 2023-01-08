@@ -7,6 +7,7 @@ from .util import (
     convert_from_hex,
     convert_to_hex,
 )
+from .const import RIOT_FLAGS_CLOCK_ON, RIOT_FLAGS_CLOCK_24_HOUR
 from .shadow_client_subscriber import ShadowClientSubscriberMixin
 
 _LOGGER = logging.getLogger(__name__)
@@ -86,6 +87,7 @@ class RestIot(ShadowClientSubscriberMixin):
             )
         if safely_get_json_value(state, "clock.flags") is not None:
             self.flags = safely_get_json_value(state, "clock.flags", int)
+
         _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
 
@@ -108,6 +110,8 @@ class RestIot(ShadowClientSubscriberMixin):
             "charging_status": self.charging_status,
             "clock": self.clock,
             "flags": self.flags,
+            "is_clock_on": self.is_clock_on,
+            "is_clock_24h": self.is_clock_24h,
             "toddler_lock": self.toddler_lock,
             "toddler_lock_mode": self.toddler_lock_mode,
         }
@@ -129,7 +133,11 @@ class RestIot(ShadowClientSubscriberMixin):
 
     @property
     def is_clock_on(self):
-        return self.flags != 0
+        return self.flags & RIOT_FLAGS_CLOCK_ON
+
+    @property
+    def is_clock_24h(self):
+        return self.flags & RIOT_FLAGS_CLOCK_24_HOUR
 
     def favorite_names(self, active_only: bool = True):
         names = []
@@ -153,12 +161,12 @@ class RestIot(ShadowClientSubscriberMixin):
     def set_clock(self, brightness: int = 0):
         _LOGGER.debug(f"Setting clock on: {brightness}")
         self._update(
-            {"clock": {"flags": 32768, "i": convert_from_percentage(brightness)}}
+            {"clock": {"flags": self.flags | RIOT_FLAGS_CLOCK_ON, "i": convert_from_percentage(brightness)}}
         )
 
     def turn_clock_off(self):
         _LOGGER.debug(f"Turn off clock")
-        self._update({"clock": {"flags": 0, "i": 655}})
+        self._update({"clock": {"flags": self.flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}})
 
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
     def set_favorite(self, favorite_name_id: str):

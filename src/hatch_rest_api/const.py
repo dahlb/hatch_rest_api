@@ -62,3 +62,6 @@ REST_PLUS_AUDIO_TRACKS = [
     RestPlusAudioTrack.Twinkle,
     RestPlusAudioTrack.RockABye,
 ]
+
+RIOT_FLAGS_CLOCK_24_HOUR = 2048
+RIOT_FLAGS_CLOCK_ON = 32768
