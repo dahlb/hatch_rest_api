@@ -4,6 +4,7 @@ from .hatch import Hatch
 from .rest_mini import RestMini
 from .rest_plus import RestPlus
 from .riot import RestIot
+from .restoreiot import RestoreIot
 from .util_bootstrap import get_rest_devices
 from .const import (
     RestMiniAudioTrack,
