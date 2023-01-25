@@ -36,42 +36,11 @@ async def testing():
         )
 
         for iot_device in iot_devices:
-            if isinstance(iot_device, RestIot):
+            def output():
+                print(f"******-{iot_device}")
 
-                def output():
-                    print(f"******-{iot_device}")
+            iot_device.register_callback(output)
 
-                iot_device.register_callback(output)
-
-                print(
-                    "\n\n\n*********** Available favorites on this device *************\n\n\n"
-                )
-                for fav in iot_device.favorite_names():
-                    iot_device.set_favorite(fav)
-                    print(f"\n\n\nPlaying {fav} for 10 seconds\n\n\n")
-                    time.sleep(10)
-
-                print(f"\n\n\nTurning toddler lock on for 30 seconds")
-                iot_device.set_toddler_lock(True)
-                time.sleep(30)
-                print(f"\n\n\nTurning toddler lock off")
-                iot_device.set_toddler_lock(False)
-
-            if isinstance(iot_device, RestPlus):
-
-                def output():
-                    print(f"******-{iot_device}")
-
-                iot_device.register_callback(output)
-                iot_device.set_on(True)
-                iot_device.set_color(255, 0, 0, 100)
-                iot_device.set_volume(22)
-                iot_device.set_audio_track(RestPlusAudioTrack.Rain)
-
-        #        print(rest_mini.shadow_value)
-        #            rest_mini.set_audio_track(RestMiniAudioTrack.Ocean)
-        #            rest_minis[1].set_volume(15)
-        #        rest_mini.set_audio_track(RestMiniAudioTrack.NONE)
         await asyncio.sleep(60)
         mqtt_connection.disconnect().result()
     finally:

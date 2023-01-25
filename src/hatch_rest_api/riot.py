@@ -133,11 +133,11 @@ class RestIot(ShadowClientSubscriberMixin):
 
     @property
     def is_clock_on(self):
-        return self.flags & RIOT_FLAGS_CLOCK_ON
+        return self.flags is not None && self.flags & RIOT_FLAGS_CLOCK_ON
 
     @property
     def is_clock_24h(self):
-        return self.flags & RIOT_FLAGS_CLOCK_24_HOUR
+        return self.flags is not None && self.flags & RIOT_FLAGS_CLOCK_24_HOUR
 
     def favorite_names(self, active_only: bool = True):
         names = []
