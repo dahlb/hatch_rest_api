@@ -5,6 +5,8 @@ from awscrt.auth import AwsCredentialsProvider
 from awsiot.mqtt_connection_builder import websockets_with_default_aws_signing
 from awsiot.iotshadow import IotShadowClient
 from aiohttp import ClientSession
+from uuid import uuid4
+from re import sub, IGNORECASE
 
 from .hatch import Hatch
 from .aws_http import AwsHttp
@@ -46,13 +48,14 @@ async def get_rest_devices(
     host_resolver = io.DefaultHostResolver(event_loop_group)
     client_bootstrap = io.ClientBootstrap(event_loop_group, host_resolver)
     endpoint = aws_token["endpoint"].lstrip("https://")
+    safe_email = sub("[^a-z]", "", email, flags=IGNORECASE).lower()
     mqtt_connection = websockets_with_default_aws_signing(
-        region="us-west-2",
+        region=aws_token["region"],
         credentials_provider=credentials_provider,
         keep_alive_secs=30,
         client_bootstrap=client_bootstrap,
         endpoint=endpoint,
-        client_id=f"hatch_rest_api/{email}",
+        client_id=f"hatch_rest_api/{safe_email}/{str(uuid4())}",
         on_connection_interrupted=on_connection_interrupted,
         on_connection_resumed=on_connection_resumed,
     )
