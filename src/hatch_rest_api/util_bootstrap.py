@@ -13,6 +13,7 @@ from .aws_http import AwsHttp
 from .rest_mini import RestMini
 from .rest_plus import RestPlus
 from .riot import RestIot
+from .restoreiot import RestoreIot
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,6 +84,13 @@ async def get_rest_devices(
                 mac=iot_device["macAddress"],
                 shadow_client=shadow_client,
                 favorites=favorites_map[iot_device["macAddress"]],
+            )
+        elif iot_device["product"] == "restoreIot":
+            return RestoreIot(
+                device_name=iot_device["name"],
+                thing_name=iot_device["thingName"],
+                mac=iot_device["macAddress"],
+                shadow_client=shadow_client,
             )
         else:
             return RestMini(
