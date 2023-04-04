@@ -1,8 +1,6 @@
 # run with "python3 src/hatch_rest_api/stub.py"
 import logging
-import time
 import asyncio
-from threading import Event
 
 from getpass import getpass
 from pathlib import Path
@@ -11,10 +9,6 @@ import sys
 path_root = Path(__file__).parents[2]
 sys.path.append(str(path_root))
 from src.hatch_rest_api.util_bootstrap import get_rest_devices
-from src.hatch_rest_api.const import RestPlusAudioTrack
-from src.hatch_rest_api.rest_plus import RestPlus
-from src.hatch_rest_api.riot import RestIot
-import json
 
 logger = logging.getLogger("src.hatch_rest_api")
 logger.setLevel(logging.DEBUG)

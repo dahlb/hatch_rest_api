@@ -9,7 +9,7 @@ _LOGGER = logging.getLogger(__name__)
 
 def clean_dictionary_for_logging(dictionary: dict[str, any]) -> dict[str, any]:
     mutable_dictionary = dictionary.copy()
-    for key in dictionary.keys():
+    for key in dictionary:
         if key.lower() in SENSITIVE_FIELD_NAMES:
             mutable_dictionary[key] = "***"
         if type(mutable_dictionary[key]) is dict:

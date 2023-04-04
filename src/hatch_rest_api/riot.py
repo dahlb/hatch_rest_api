@@ -165,7 +165,7 @@ class RestIot(ShadowClientSubscriberMixin):
         )
 
     def turn_clock_off(self):
-        _LOGGER.debug(f"Turn off clock")
+        _LOGGER.debug("Turn off clock")
         self._update({"clock": {"flags": self.flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}})
 
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
@@ -179,7 +179,7 @@ class RestIot(ShadowClientSubscriberMixin):
         self._update({"current": {"srId": 0, "step": 0, "playing": "none"}})
 
     def turn_light_off(self):
-        _LOGGER.debug(f"Turning light off")
+        _LOGGER.debug("Turning light off")
         # 9999 = custom color 9998 = turn off
         # if favorite is playing then light can be turned off without turning off sound
         if self.current_playing == "routine":

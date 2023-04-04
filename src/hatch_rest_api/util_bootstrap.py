@@ -62,7 +62,7 @@ async def get_rest_devices(
     )
     try:
         mqtt_connection.connect().result()
-        _LOGGER.debug(f"mqtt connection connected")
+        _LOGGER.debug("mqtt connection connected")
     except Exception as e:
         _LOGGER.error(f"MQTT connection failed with exception {e}")
         raise e
