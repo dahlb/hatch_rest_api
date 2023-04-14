@@ -13,7 +13,7 @@ jobs:
 
       - name: Gets semantic release info
         id: semantic_release_info
-        uses: jossef/action-semantic-release-info@v1
+        uses: jossef/action-semantic-release-info@v2.1.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
@@ -34,6 +34,7 @@ jobs:
         with:
           github_token: ${{ github.token }}
           tags: true
+          branch: ${{ github.ref }}
 
       - name: Create GitHub Release
         if: ${{steps.semantic_release_info.outputs.version != ''}}
