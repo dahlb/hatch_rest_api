@@ -40,6 +40,7 @@ ignore = [
     "D411",  # Missing blank line before section
     "E501",  # line too long
     "E731",  # do not assign a lambda expression, use a def
+    "F401",  # unused-import
 ]
 
 [flake8-pytest-style]
