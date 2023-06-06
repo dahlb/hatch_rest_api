@@ -14,12 +14,12 @@ def request_with_logging_and_errors(func):
     async def request_with_logging_wrapper(*args, **kwargs):
         response = await func(*args, **kwargs)
         response_json = await response.json()
-        if response_json["status"] == "success":
+        if response_json.get("status") == "success":
             return response
-        if response_json["errorCode"] == 1001:
+        if response_json.get("errorCode") == 1001:
             _LOGGER.debug("error: session invalid")
             raise AuthError
-        raise ClientError(f"api error:{response_json['message']}")
+        raise ClientError(f"api error:{response_json.get('message')}")
 
     return request_with_logging_wrapper
 
