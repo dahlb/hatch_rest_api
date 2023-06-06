@@ -1,6 +1,6 @@
 import logging
 
-from aiohttp import ClientSession, ClientResponse, ClientError
+from aiohttp import ClientSession, ClientResponse, ClientError, __version__
 
 from .errors import AuthError
 from .util_http import request_with_logging
@@ -30,6 +30,7 @@ class Hatch:
             self.api_session = ClientSession(raise_for_status=True)
         else:
             self.api_session = client_session
+        _LOGGER.debug(f"api_session_version: {__version__}")
 
     async def cleanup_client_session(self):
         await self.api_session.close()
