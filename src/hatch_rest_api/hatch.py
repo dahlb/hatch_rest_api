@@ -1,6 +1,7 @@
 import logging
 
 from aiohttp import ClientSession, ClientResponse, ClientError, __version__
+from aiohttp.hdrs import USER_AGENT
 
 from .errors import AuthError
 from .util_http import request_with_logging
@@ -40,7 +41,7 @@ class Hatch:
     async def _post_request_with_logging_and_errors_raised(
         self, url: str, json_body: dict, auth_token: str = None
     ) -> ClientResponse:
-        headers = {}
+        headers = {USER_AGENT: "hatch_rest_api"}
         if auth_token is not None:
             headers["X-HatchBaby-Auth"] = auth_token
         return await self.api_session.post(url=url, json=json_body, headers=headers)
