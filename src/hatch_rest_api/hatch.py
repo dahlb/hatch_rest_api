@@ -51,7 +51,7 @@ class Hatch:
     async def _get_request_with_logging_and_errors_raised(
         self, url: str, auth_token: str = None, params: dict = None
     ) -> ClientResponse:
-        headers = {}
+        headers = {USER_AGENT: "hatch_rest_api"}
         if auth_token is not None:
             headers["X-HatchBaby-Auth"] = auth_token
         return await self.api_session.get(url=url, headers=headers, params=params)
