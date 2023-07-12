@@ -31,12 +31,6 @@ keywords = [
     "rest-mini",
     "api"
 ]
-dependencies = [
-    "xmltodict",
-    "requests-oauthlib",
-    "requests",
-    "python-dateutil"
-]
 
 [project.urls]
 "Homepage" = "https://github.com/dahlb/hatch_rest_api"
