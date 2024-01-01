@@ -111,7 +111,7 @@ class Hatch:
         )
         response_json = await response.json()
         favorites = response_json["payload"]
-        favorites.sort(key=lambda x: x["displayOrder"])
+        favorites.sort(key=lambda x: x.get("displayOrder", float('inf')))
         return favorites
 
     async def content(self, auth_token: str, product: str, content: list):
