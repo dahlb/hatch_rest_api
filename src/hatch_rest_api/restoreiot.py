@@ -130,6 +130,15 @@ class RestoreIot(ShadowClientSubscriberMixin):
         _LOGGER.debug(f"Setting volume: {percentage}")
         self._update({"current": {"sound": {"v": convert_from_percentage(percentage)}}})
 
+    def favorite_names(self, active_only: bool = True):
+        names = []
+        for favorite in self.favorites:
+            if active_only and favorite["active"]:
+                names.append(f"{favorite['name']}-{favorite['id']}")
+            else:
+                names.append(f"{favorite['name']}-{favorite['id']}")
+        return names
+
     def set_clock(self, brightness: int = 0):
         _LOGGER.debug(f"Setting clock on: {brightness}")
         self._update(
@@ -139,6 +148,12 @@ class RestoreIot(ShadowClientSubscriberMixin):
     def turn_clock_off(self):
         _LOGGER.debug("Turn off clock")
         self._update({"clock": {"flags": self.flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}})
+
+    # favorite_name_id is expected to be a string of name-id since name alone isn't unique
+    def set_favorite(self, favorite_name_id: str):
+        _LOGGER.debug(f"Setting favorite: {favorite_name_id}")
+        fav_id = int(favorite_name_id.split("-")[1])
+        self._update({"current": {"srId": fav_id, "step": 1, "playing": "routine"}})
 
     def turn_off(self):
         _LOGGER.debug("Turning off sound")
