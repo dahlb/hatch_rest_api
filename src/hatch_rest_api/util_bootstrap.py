@@ -32,6 +32,7 @@ async def get_rest_devices(
     iot_devices = await api.iot_devices(auth_token=token)
     aws_token = await api.token(auth_token=token)
     favorites_map = await _get_favorites_for_all_v2_devices(api, token, iot_devices)
+    routines_map = await _get_routines_for_all_v2_devices(api, token, iot_devices)
     # This call will fetch sounds for a v2 device but the official app doesn't appear to use these sounds
     # sounds = await _get_sound_content_for_v2_devices(api, token, iot_devices)
     aws_http: AwsHttp = AwsHttp(api.api_session)
@@ -91,6 +92,7 @@ async def get_rest_devices(
                 thing_name=iot_device["thingName"],
                 mac=iot_device["macAddress"],
                 shadow_client=shadow_client,
+                favorites=routines_map[iot_device["macAddress"]],
             )
         else:
             return RestMini(
@@ -117,6 +119,16 @@ async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
             favorites = await api.favorites(auth_token=token, mac=mac)
             _LOGGER.debug(f"Favorites for {mac}: {favorites}")
             mac_to_fav[mac] = favorites
+    return mac_to_fav
+
+async def _get_routines_for_all_v2_devices(api, token, iot_devices):
+    mac_to_fav = {}
+    for device in iot_devices:
+        if device["product"] in ["restoreIot"]:
+            mac = device["macAddress"]
+            routines = await api.routines(auth_token=token, mac=mac)
+            _LOGGER.debug(f"Routines for {mac}: {routines}")
+            mac_to_fav[mac] = routines
     return mac_to_fav
 
 

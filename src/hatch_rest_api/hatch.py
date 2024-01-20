@@ -114,6 +114,19 @@ class Hatch:
         favorites.sort(key=lambda x: x.get("displayOrder", float('inf')))
         return favorites
 
+    async def routines(self, auth_token: str, mac: str):
+        url = API_URL + "service/app/routine/v2/fetch"
+        params = {"macAddress": mac, "types": "routine"}
+        response: ClientResponse = (
+            await self._get_request_with_logging_and_errors_raised(
+                url=url, auth_token=auth_token, params=params
+            )
+        )
+        response_json = await response.json()
+        routines = response_json["payload"]
+        routines.sort(key=lambda x: x.get("displayOrder", float('inf')))
+        return routines
+
     async def content(self, auth_token: str, product: str, content: list):
         # content options are ["sound", "color", "windDown"]
         url = API_URL + "service/app/content/v1/fetchByProduct"
