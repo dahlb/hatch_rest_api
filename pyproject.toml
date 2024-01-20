@@ -1,7 +1,9 @@
 [build-system]
 requires = [
     "setuptools>=61.0",
-    "wheel"
+    "wheel",
+    "aiohttp>=3.8.1",
+    "awsiotsdk>=1.21.0"
 ]
 build-backend = "setuptools.build_meta"
 
