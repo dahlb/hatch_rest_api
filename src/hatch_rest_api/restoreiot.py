@@ -90,6 +90,7 @@ class RestoreIot(ShadowClientSubscriberMixin):
             "is_online": self.is_online,
             "is_on": self.is_on,
             "is_playing": self.is_playing,
+            "audio_track": self.audio_track,
             "volume": self.volume,
             "red": self.red,
             "green": self.green,
@@ -152,7 +153,7 @@ class RestoreIot(ShadowClientSubscriberMixin):
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
     def set_favorite(self, favorite_name_id: str):
         _LOGGER.debug(f"Setting favorite: {favorite_name_id}")
-        fav_id = int(favorite_name_id.split("-")[1])
+        fav_id = int(favorite_name_id.rsplit("-", 1)[1])
         self._update({"current": {"srId": fav_id, "step": 1, "playing": "routine"}})
 
     def turn_off(self):

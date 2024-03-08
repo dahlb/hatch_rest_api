@@ -43,5 +43,5 @@ async def testing():
         if api:
             await api.cleanup_client_session()
 
-
-asyncio.run(testing())
+if __name__ == "__main__":
+    asyncio.run(testing())

@@ -11,9 +11,10 @@ class RestMini(ShadowClientSubscriberMixin):
     firmware_version: str = None
     is_online: bool = None
 
-    is_playing: bool = None
     audio_track: RestMiniAudioTrack = None
     volume: int = None
+
+    current_playing: str = "none"
 
     def __repr__(self):
         return {
@@ -42,12 +43,16 @@ class RestMini(ShadowClientSubscriberMixin):
                 safely_get_json_value(state, "current.sound.id")
             )
         if safely_get_json_value(state, "current.playing") is not None:
-            self.is_playing = safely_get_json_value(state, "current.playing") != "none"
+            self.current_playing = safely_get_json_value(state, "current.playing")
         if safely_get_json_value(state, "current.sound.v") is not None:
             self.volume = convert_to_percentage(
                 safely_get_json_value(state, "current.sound.v")
             )
         self.publish_updates()
+
+    @property
+    def is_playing(self) -> bool:
+        return self.current_playing != "none"
 
     def set_volume(self, percentage: int):
         self._update(
