@@ -12,14 +12,14 @@ def clean_dictionary_for_logging(dictionary: dict[str, any]) -> dict[str, any]:
     for key in dictionary:
         if key.lower() in SENSITIVE_FIELD_NAMES:
             mutable_dictionary[key] = "***"
-        if type(mutable_dictionary[key]) is dict:
+        if isinstance(mutable_dictionary[key], dict):
             mutable_dictionary[key] = clean_dictionary_for_logging(
                 mutable_dictionary[key].copy()
             )
-        if type(mutable_dictionary[key]) is list:
+        if isinstance(mutable_dictionary[key], list):
             new_array = []
             for item in mutable_dictionary[key]:
-                if type(item) is dict:
+                if isinstance(item, dict):
                     new_array.append(clean_dictionary_for_logging(item.copy()))
                 else:
                     new_array.append(item)
