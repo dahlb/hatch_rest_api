@@ -11,6 +11,8 @@ from awsiot.iotshadow import (
     ShadowState,
 )
 
+from .types import SoundContent
+
 from .callbacks import CallbacksMixin
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,7 +28,7 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         mac: str,
         shadow_client: IotShadowClient,
         favorites: Optional[list] = None,
-        sounds: Optional[list] = None,
+        sounds: Optional[list[SoundContent|dict]] = None,
     ):
         if favorites is None:
             favorites = []

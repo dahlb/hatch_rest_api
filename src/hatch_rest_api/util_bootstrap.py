@@ -124,10 +124,11 @@ async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
             mac_to_fav[mac] = favorites
     return mac_to_fav
 
+
 async def _get_routines_for_all_v2_devices(api, token, iot_devices):
     mac_to_fav = {}
     for device in iot_devices:
-        if device["product"] in ["restoreIot"]:
+        if device["product"] in ["riot", "restoreIot"]:
             mac = device["macAddress"]
             routines = await api.routines(auth_token=token, mac=mac)
             _LOGGER.debug(f"Routines for {mac}: {routines}")
