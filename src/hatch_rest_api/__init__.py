@@ -11,4 +11,6 @@ from .const import (
     REST_MINI_AUDIO_TRACKS,
     RestPlusAudioTrack,
     REST_PLUS_AUDIO_TRACKS,
+    RIoTAudioTrack,
+    REST_IOT_AUDIO_TRACKS
 )

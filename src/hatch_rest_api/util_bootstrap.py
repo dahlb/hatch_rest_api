@@ -76,6 +76,7 @@ async def get_rest_devices(
                 thing_name=iot_device["thingName"],
                 mac=iot_device["macAddress"],
                 shadow_client=shadow_client,
+                sounds=sounds,
             )
         elif iot_device["product"] in ["riot", "riotPlus"]:
             return RestIot(
@@ -93,6 +94,7 @@ async def get_rest_devices(
                 mac=iot_device["macAddress"],
                 shadow_client=shadow_client,
                 favorites=routines_map[iot_device["macAddress"]],
+                sounds=sounds,
             )
         else:
             return RestMini(
@@ -100,6 +102,7 @@ async def get_rest_devices(
                 thing_name=iot_device["thingName"],
                 mac=iot_device["macAddress"],
                 shadow_client=shadow_client,
+                sounds=sounds,
             )
 
     rest_devices = map(create_rest_devices, iot_devices)
