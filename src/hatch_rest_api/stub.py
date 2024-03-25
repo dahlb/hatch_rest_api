@@ -35,8 +35,18 @@ async def testing():
 
             iot_device.register_callback(output)
 
+            if iot_device.set_sound:
+                # set volume safely low
+                print("******-Adjusting volume to safe level")
+                iot_device.set_volume(25)
+                # play each available sound
+                for sound in iot_device.sounds:
+                    print(f"******-PLAYING SOUND {sound['title']}")
+                    iot_device.set_sound(sound)
+                    await asyncio.sleep(5)
+                iot_device.turn_off()
+
         await asyncio.sleep(60)
-        mqtt_connection.disconnect().result()
     finally:
         if mqtt_connection:
             mqtt_connection.disconnect().result()

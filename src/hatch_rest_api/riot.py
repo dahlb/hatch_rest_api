@@ -1,5 +1,7 @@
 import logging
 
+from .types import SoundContent
+
 from .util import (
     convert_to_percentage,
     safely_get_json_value,
@@ -161,7 +163,12 @@ class RestIot(ShadowClientSubscriberMixin):
     def set_clock(self, brightness: int = 0):
         _LOGGER.debug(f"Setting clock on: {brightness}")
         self._update(
-            {"clock": {"flags": self.flags | RIOT_FLAGS_CLOCK_ON, "i": convert_from_percentage(brightness)}}
+            {
+                "clock": {
+                    "flags": self.flags | RIOT_FLAGS_CLOCK_ON,
+                    "i": convert_from_percentage(brightness),
+                }
+            }
         )
 
     def turn_clock_off(self):
@@ -173,6 +180,43 @@ class RestIot(ShadowClientSubscriberMixin):
         _LOGGER.debug(f"Setting favorite: {favorite_name_id}")
         fav_id = int(favorite_name_id.split("-")[1])
         self._update({"current": {"srId": fav_id, "step": 1, "playing": "routine"}})
+
+    def set_sound(self, sound: SoundContent, duration: int = 0, until="indefinite"):
+        """
+        Pass a SoundContent item from self.sounds
+        """
+        _LOGGER.debug(f"Setting sound: {sound['title']}")
+        self._update(
+            {
+                "current": {
+                    "playing": "remote",
+                    "sound": {
+                        # not clear if this is the right ID, but it also doesn't appear to matter?
+                        "id": sound["contentId"],
+                        "mute": False,
+                        "url": sound.get("wavUrl") or sound.get("mp3Url"),
+                        "duration": duration,
+                        "until": until,
+                    },
+                }
+            }
+        )
+
+    def set_sound_url(self, sound_url: str):
+        """
+        appears to work with some but not all public wav and mp3 urls
+
+        i.e. http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3
+        """
+        _LOGGER.debug(f"Setting sound URL: {sound_url}")
+        self._update(
+            {
+                "current": {
+                    "playing": "remote",
+                    "sound": {"mute": False, "url": sound_url},
+                }
+            }
+        )
 
     def turn_off(self):
         _LOGGER.debug("Turning off sound")
