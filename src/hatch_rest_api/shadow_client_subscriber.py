@@ -27,8 +27,8 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         thing_name: str,
         mac: str,
         shadow_client: IotShadowClient,
-        favorites: Optional[list] = None,
-        sounds: Optional[list[SoundContent|dict]] = None,
+        favorites: list | None = None,
+        sounds: list[SoundContent | dict] | None = None,
     ):
         if favorites is None:
             favorites = []
