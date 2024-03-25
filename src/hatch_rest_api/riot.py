@@ -189,6 +189,11 @@ class RestIot(ShadowClientSubscriberMixin):
         if audio_track == RIoTAudioTrack.NONE:
             self.turn_off()
         else:
+            # Hard-coded list, as some of these values are not returned by the 'sounds' API. These were found from manually browsing the app and playing each
+            # song, collecting the necessary values (name, id, url) from the Home Assistant debug logs for the `ha_hatch` custom component integration.
+            # Ideally, the API would return everything, but since Hatch does not appear to have public API documentation, this is the best we can do for now.
+            # If the API returns different URLs for any of the media (wav files), this map will automatically be updated below.
+            # See https://github.com/dahlb/ha_hatch/issues/95#issuecomment-2017905731 for more details.
             sound_url_map = {
                 RIoTAudioTrack.BrownNoise.value: "https://assets.ctfassets.net/hlsdh3zwyrtx/Bqk8q7mjFcSa8B1Ovgllp/e9701ae7df057a31b89a4cd2830ef0dc/Brown_Noise_2_20210412.wav",
                 RIoTAudioTrack.WhiteNoise.value: "https://assets.ctfassets.net/hlsdh3zwyrtx/2XkUiUT4vu1E69WMT3bxPo/099169855661de3b439135ad2fbd8098/003_pinknoise16.wav",
