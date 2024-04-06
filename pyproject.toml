@@ -1,9 +1,9 @@
 [build-system]
 requires = [
-    "setuptools>=61.0",
+    "setuptools>=68.0.0",
     "wheel",
-    "aiohttp>=3.8.1",
-    "awsiotsdk>=1.21.0"
+    "aiohttp>=3.9.3",
+    "awsiotsdk>=1.21.1"
 ]
 build-backend = "setuptools.build_meta"
 
@@ -15,7 +15,7 @@ authors = [
 ]
 description = "Hatch Rest mini Api Wrapper"
 readme = "README.md"
-requires-python = ">=3.10, <4"
+requires-python = ">=3.12.0, <4"
 dependencies = [
     "aiohttp>=3.8.1",
     "awsiotsdk>=1.16.0"
@@ -25,7 +25,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
     "Operating System :: MacOS :: MacOS X",
 ]
 keywords = [
