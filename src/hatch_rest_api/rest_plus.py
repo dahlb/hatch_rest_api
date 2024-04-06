@@ -16,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 class RestPlus(ShadowClientSubscriberMixin):
     firmware_version: str = None
     audio_track: RestPlusAudioTrack = None
-    volume: int = None
+    volume: int = 0
 
     is_on: bool = None
     battery_level: int = None

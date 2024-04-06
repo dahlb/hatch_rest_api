@@ -9,14 +9,14 @@ from .util import (
     convert_from_hex,
     convert_to_hex,
 )
-from .const import RIOT_FLAGS_CLOCK_ON, RIOT_FLAGS_CLOCK_24_HOUR
+from .const import RIOT_FLAGS_CLOCK_ON, RIOT_FLAGS_CLOCK_24_HOUR, RIoTAudioTrack
 from .shadow_client_subscriber import ShadowClientSubscriberMixin
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class RestIot(ShadowClientSubscriberMixin):
-    audio_track: str = None
+    audio_track: RIoTAudioTrack = None
     firmware_version: str = None
     volume: int = 0
 
@@ -63,6 +63,7 @@ class RestIot(ShadowClientSubscriberMixin):
             )
         if safely_get_json_value(state, "current.sound.id", int) is not None:
             self.sound_id = safely_get_json_value(state, "current.sound.id", int)
+            self.audio_track = RIoTAudioTrack(self.sound_id)
         if safely_get_json_value(state, "current.color.id") is not None:
             self.color_id = safely_get_json_value(state, "current.color.id", int)
         if safely_get_json_value(state, "current.color.w") is not None:
@@ -103,6 +104,8 @@ class RestIot(ShadowClientSubscriberMixin):
             "is_on": self.is_on,
             "battery_level": self.battery_level,
             "is_playing": self.is_playing,
+            "audio_track": self.audio_track,
+            "sound_id": self.sound_id,
             "volume": self.volume,
             "red": self.red,
             "green": self.green,
@@ -178,8 +181,27 @@ class RestIot(ShadowClientSubscriberMixin):
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
     def set_favorite(self, favorite_name_id: str):
         _LOGGER.debug(f"Setting favorite: {favorite_name_id}")
-        fav_id = int(favorite_name_id.split("-")[1])
+        fav_id = int(favorite_name_id.rsplit("-", 1)[1])
         self._update({"current": {"srId": fav_id, "step": 1, "playing": "routine"}})
+
+    def set_audio_track(self, audio_track: RIoTAudioTrack):
+        _LOGGER.debug(f"Setting audio track: {audio_track}")
+        if audio_track == RIoTAudioTrack.NONE:
+            self.turn_off()
+            return
+
+        sound_url_map = RIoTAudioTrack.sound_url_map()
+        # update the map with any changes from the API
+        sound_url_map.update({
+            sound.get('id'): sound.get('wavUrl') for sound in self.sounds
+        })
+        _LOGGER.debug(f'Available Sounds: {sound_url_map}')
+        self._update({"current": {"playing": "remote", "step": 1, "sound": {
+                "id": audio_track.value,
+                "url": sound_url_map[audio_track.value],
+                "mute": False,
+                "until": "indefinite",
+            }}})
 
     def set_sound(self, sound: SoundContent, duration: int = 0, until="indefinite"):
         """
@@ -202,7 +224,7 @@ class RestIot(ShadowClientSubscriberMixin):
             }
         )
 
-    def set_sound_url(self, sound_url: str):
+    def set_sound_url(self, sound_url: str = 'http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3'):
         """
         appears to work with some but not all public wav and mp3 urls
 

@@ -1,4 +1,6 @@
 import logging
+from typing import Optional
+
 from awscrt import mqtt
 from awsiot import iotshadow
 from awsiot.iotshadow import (
@@ -25,9 +27,13 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         thing_name: str,
         mac: str,
         shadow_client: IotShadowClient,
-        favorites: list = [],
-        sounds: "list[SoundContent|dict]" = [],
+        favorites: list | None = None,
+        sounds: list[SoundContent | dict] | None = None,
     ):
+        if favorites is None:
+            favorites = []
+        if sounds is None:
+            sounds = []
         self.device_name = device_name
         self.thing_name = thing_name
         self.mac = mac
@@ -74,9 +80,11 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
     def _on_update_shadow_accepted(self, response: UpdateShadowResponse):
         _LOGGER.debug(f"update {self.device_name}, RESPONSE: {response}")
         if response.version < self.document_version:
+            _LOGGER.debug(f'ignoring update {self.device_name}, response version: {response.version} < document version: {self.document_version}')
             return
         if response.state:
             if response.state.reported:
+                _LOGGER.debug(f'updating {self.device_name} local state: {response.state.reported}')
                 self.document_version = response.version
                 self._update_local_state(response.state.reported)
 

@@ -93,6 +93,7 @@ async def get_rest_devices(
                 mac=iot_device["macAddress"],
                 shadow_client=shadow_client,
                 favorites=routines_map[iot_device["macAddress"]],
+                sounds=sounds,
             )
         else:
             return RestMini(
