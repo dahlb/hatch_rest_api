@@ -45,7 +45,7 @@ class RestIot(ShadowClientSubscriberMixin):
         if safely_get_json_value(state, "deviceInfo.b") is not None:
             self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
         if safely_get_json_value(state, "deviceInfo.powerStatus") is not None:
-            self.charging_status = safely_get_json_value(state, "deviceInfo.powerStatus", bool)
+            self.charging_status = safely_get_json_value(state, "deviceInfo.powerStatus", int)
         if safely_get_json_value(state, "toddlerLockOn") is not None:
             self.toddler_lock = safely_get_json_value(state, "toddlerLockOn", bool)
         if safely_get_json_value(state, "toddlerLock.turnOnMode") is not None:
