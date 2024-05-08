@@ -22,7 +22,9 @@ class RestIot(ShadowClientSubscriberMixin):
 
     is_online: bool = False
     current_playing: str = "none"
-
+    current_id: int = 0
+    current_step: int = 0
+    current_paused: bool = False
     battery_level: int = None
     color_id: int = 9998
     sound_id: int = 19998
@@ -44,9 +46,7 @@ class RestIot(ShadowClientSubscriberMixin):
         if safely_get_json_value(state, "deviceInfo.b") is not None:
             self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
         if safely_get_json_value(state, "deviceInfo.powerStatus") is not None:
-            self.charging_status = safely_get_json_value(
-                state, "deviceInfo.powerStatus", int
-            )
+            self.charging_status = safely_get_json_value(state, "deviceInfo.powerStatus", bool)
         if safely_get_json_value(state, "toddlerLockOn") is not None:
             self.toddler_lock = safely_get_json_value(state, "toddlerLockOn", bool)
         if safely_get_json_value(state, "toddlerLock.turnOnMode") is not None:
@@ -55,6 +55,12 @@ class RestIot(ShadowClientSubscriberMixin):
             )
         if safely_get_json_value(state, "current.playing") is not None:
             self.current_playing = safely_get_json_value(state, "current.playing")
+        if safely_get_json_value(state, "current.srId") is not None:
+            self.current_id = safely_get_json_value(state, "current.srId")
+        if safely_get_json_value(state, "current.step") is not None:
+            self.current_step = safely_get_json_value(state, "current.step")
+        if safely_get_json_value(state, "current.paused") is not None:
+            self.current_paused = safely_get_json_value(state, "current.paused", bool)
         if safely_get_json_value(state, "connected") is not None:
             self.is_online = safely_get_json_value(state, "connected", bool)
         if safely_get_json_value(state, "current.sound.v") is not None:
@@ -101,6 +107,10 @@ class RestIot(ShadowClientSubscriberMixin):
             "mac": self.mac,
             "firmware_version": self.firmware_version,
             "is_online": self.is_online,
+            "current_playing": self.current_playing,
+            "current_id": self.current_id,
+            "current_step": self.current_step,
+            "current_paused": self.current_paused,
             "is_on": self.is_on,
             "battery_level": self.battery_level,
             "is_playing": self.is_playing,
@@ -152,6 +162,9 @@ class RestIot(ShadowClientSubscriberMixin):
             else:
                 names.append(f"{favorite['name']}-{favorite['id']}")
         return names
+
+    def set_paused(self, paused: bool):
+        self._update({"current": {"paused": paused}})
 
     def set_volume(self, percentage: int):
         _LOGGER.debug(f"Setting volume: {percentage}")
