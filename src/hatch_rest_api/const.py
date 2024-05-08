@@ -36,7 +36,7 @@ class RestPlusAudioTrack(Enum):
 
 
 class RIoTAudioTrack(Enum):
-    NONE = 0
+    NONE = 19998
     BrownNoise = 10200
     WhiteNoise = 10137
     Ocean = 10138
