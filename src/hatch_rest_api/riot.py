@@ -24,7 +24,6 @@ class RestIot(ShadowClientSubscriberMixin):
     current_playing: str = "none"
     current_id: int = 0
     current_step: int = 0
-    current_paused: bool = False
     battery_level: int = None
     color_id: int = 9998
     sound_id: int = 19998
@@ -59,8 +58,6 @@ class RestIot(ShadowClientSubscriberMixin):
             self.current_id = safely_get_json_value(state, "current.srId")
         if safely_get_json_value(state, "current.step") is not None:
             self.current_step = safely_get_json_value(state, "current.step")
-        if safely_get_json_value(state, "current.paused") is not None:
-            self.current_paused = safely_get_json_value(state, "current.paused", bool)
         if safely_get_json_value(state, "connected") is not None:
             self.is_online = safely_get_json_value(state, "connected", bool)
         if safely_get_json_value(state, "current.sound.v") is not None:
@@ -110,7 +107,6 @@ class RestIot(ShadowClientSubscriberMixin):
             "current_playing": self.current_playing,
             "current_id": self.current_id,
             "current_step": self.current_step,
-            "current_paused": self.current_paused,
             "is_on": self.is_on,
             "battery_level": self.battery_level,
             "is_playing": self.is_playing,
@@ -162,9 +158,6 @@ class RestIot(ShadowClientSubscriberMixin):
             else:
                 names.append(f"{favorite['name']}-{favorite['id']}")
         return names
-
-    def set_paused(self, paused: bool):
-        self._update({"current": {"paused": paused}})
 
     def set_volume(self, percentage: int):
         _LOGGER.debug(f"Setting volume: {percentage}")
