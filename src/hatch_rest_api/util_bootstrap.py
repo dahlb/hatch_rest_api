@@ -1,5 +1,7 @@
 import logging
+import asyncio
 
+from functools import partial
 from awscrt import io
 from awscrt.auth import AwsCredentialsProvider
 from awsiot.mqtt_connection_builder import websockets_with_default_aws_signing
@@ -25,8 +27,9 @@ async def get_rest_devices(
     on_connection_interrupted=None,
     on_connection_resumed=None,
 ):
+    loop = asyncio.get_running_loop()
     if _LOGGER.isEnabledFor(logging.DEBUG):
-        io.init_logging(io.LogLevel.Debug, "hatch_rest_api-aws_mqtt.log")
+        await loop.run_in_executor(None, io.init_logging, io.LogLevel.Debug, "hatch_rest_api-aws_mqtt.log")
     api = Hatch(client_session=client_session)
     token = await api.login(email=email, password=password)
     iot_devices = await api.iot_devices(auth_token=token)
@@ -50,18 +53,18 @@ async def get_rest_devices(
     client_bootstrap = io.ClientBootstrap(event_loop_group, host_resolver)
     endpoint = aws_token["endpoint"].lstrip("https://")
     safe_email = sub("[^a-z]", "", email, flags=IGNORECASE).lower()
-    mqtt_connection = websockets_with_default_aws_signing(
-        region=aws_token["region"],
-        credentials_provider=credentials_provider,
-        keep_alive_secs=30,
-        client_bootstrap=client_bootstrap,
-        endpoint=endpoint,
-        client_id=f"hatch_rest_api/{safe_email}/{str(uuid4())}",
-        on_connection_interrupted=on_connection_interrupted,
-        on_connection_resumed=on_connection_resumed,
-    )
+    mqtt_connection = await loop.run_in_executor(None, partial(websockets_with_default_aws_signing,
+                                                               region=aws_token["region"],
+                                                               credentials_provider=credentials_provider,
+                                                               keep_alive_secs=30,
+                                                               client_bootstrap=client_bootstrap,
+                                                               endpoint=endpoint,
+                                                               client_id=f"hatch_rest_api/{safe_email}/{str(uuid4())}",
+                                                               on_connection_interrupted=on_connection_interrupted,
+                                                               on_connection_resumed=on_connection_resumed))
     try:
-        mqtt_connection.connect().result()
+        connect_future = await loop.run_in_executor(None, mqtt_connection.connect)
+        await loop.run_in_executor(None, connect_future.result)
         _LOGGER.debug("mqtt connection connected")
     except Exception as e:
         _LOGGER.error(f"MQTT connection failed with exception {e}")
