@@ -32,8 +32,6 @@ class RestoreIot(ShadowClientSubscriberMixin):
     clock: int = 0
     flags: int = 0
 
-    is_on: bool = None
-
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
         if safely_get_json_value(state, "deviceInfo.f") is not None:
