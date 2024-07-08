@@ -20,6 +20,7 @@ logger.addHandler(ch)
 
 
 async def testing():
+    loop = asyncio.get_running_loop()
     email = input("Email: ")
     password = getpass()
     mqtt_connection = None
@@ -38,9 +39,10 @@ async def testing():
         await asyncio.sleep(60)
     finally:
         if mqtt_connection:
-            mqtt_connection.disconnect().result()
+            disconnect = await loop.run_in_executor(None, mqtt_connection.disconnect)
+            await loop.run_in_executor(None, disconnect.result)
         if api:
             await api.cleanup_client_session()
 
 if __name__ == "__main__":
-    asyncio.run(testing())
+    asyncio.run(testing(), debug=True)
