@@ -14,8 +14,8 @@ from .hatch import Hatch
 from .aws_http import AwsHttp
 from .rest_mini import RestMini
 from .rest_plus import RestPlus
-from .riot import RestIot
-from .restoreiot import RestoreIot
+from .rest_iot import RestIot
+from .restore_iot import RestoreIot
 
 _LOGGER = logging.getLogger(__name__)
 
