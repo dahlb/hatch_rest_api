@@ -31,10 +31,11 @@ async def testing():
         )
 
         for iot_device in iot_devices:
-            def output():
-                print(f"******-{iot_device}")
+            if "reading" in iot_device.device_name:
+                def output():
+                    print(f"******-{iot_device}")
 
-            iot_device.register_callback(output)
+                iot_device.register_callback(output)
 
         await asyncio.sleep(60)
     finally:
