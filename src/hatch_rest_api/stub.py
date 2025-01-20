@@ -37,7 +37,7 @@ async def testing():
 
                 iot_device.register_callback(output)
 
-        await asyncio.sleep(60)
+        await asyncio.sleep(600)
     finally:
         if mqtt_connection:
             disconnect = await loop.run_in_executor(None, mqtt_connection.disconnect)

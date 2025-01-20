@@ -43,6 +43,7 @@ async def get_rest_devices(
         identityId=aws_token["identityId"],
         aws_token=aws_token["token"],
     )
+    _LOGGER.debug(f"AWS credentials: {aws_credentials}")
     credentials_provider = AwsCredentialsProvider.new_static(
         aws_credentials["Credentials"]["AccessKeyId"],
         aws_credentials["Credentials"]["SecretKey"],
