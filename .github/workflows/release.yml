@@ -15,7 +15,7 @@ jobs:
         id: semantic_release_info
         uses: jossef/action-semantic-release-info@v3.0.0
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Version and Commit
         if: ${{steps.semantic_release_info.outputs.version != ''}}
@@ -32,7 +32,7 @@ jobs:
         if: ${{steps.semantic_release_info.outputs.version != ''}}
         uses: ad-m/github-push-action@v0.8.0
         with:
-          github_token: ${{ github.token }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           tags: true
           branch: ${{ github.ref }}
 
@@ -40,7 +40,7 @@ jobs:
         if: ${{steps.semantic_release_info.outputs.version != ''}}
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.semantic_release_info.outputs.git_tag }}
           release_name: ${{ steps.semantic_release_info.outputs.git_tag }}
@@ -48,10 +48,10 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.9
         uses: actions/setup-python@v5
         with:
-          python-version: 3.12
+          python-version: 3.9
 
       - name: Install pypa/build
         run: >-
@@ -71,6 +71,6 @@ jobs:
 
       - name: Publish distribution 📦 to PyPI
         if: ${{steps.semantic_release_info.outputs.version != ''}}
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@master
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
