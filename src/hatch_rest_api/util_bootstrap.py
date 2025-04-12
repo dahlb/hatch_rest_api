@@ -10,6 +10,7 @@ from aiohttp import ClientSession
 from uuid import uuid4
 from re import sub, IGNORECASE
 
+from . import BaseError
 from .hatch import Hatch
 from .aws_http import AwsHttp
 from .rest_mini import RestMini
@@ -33,6 +34,8 @@ async def get_rest_devices(
     api = Hatch(client_session=client_session)
     token = await api.login(email=email, password=password)
     iot_devices = await api.iot_devices(auth_token=token)
+    if len(iot_devices) == 0:
+        raise BaseError("No compatible devices found on this hatch account")
     aws_token = await api.token(auth_token=token)
     favorites_map = await _get_favorites_for_all_v2_devices(api, token, iot_devices)
     routines_map = await _get_routines_for_all_v2_devices(api, token, iot_devices)
