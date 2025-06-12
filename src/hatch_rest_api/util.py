@@ -2,8 +2,6 @@ import logging
 
 from .const import SENSITIVE_FIELD_NAMES, MAX_IOT_VALUE
 
-from math import ceil, floor
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -29,19 +27,19 @@ def clean_dictionary_for_logging(dictionary: dict[str, any]) -> dict[str, any]:
 
 
 def convert_from_percentage(percentage: int):
-    return ceil((percentage / 100) * MAX_IOT_VALUE)
+    return int(round(percentage / 100.0 * MAX_IOT_VALUE)) & 0xFFFF
 
 
 def convert_to_percentage(value: int):
-    return floor((value * 100) / MAX_IOT_VALUE)
+    return round((value & 0xFFFF) / (1.0 * MAX_IOT_VALUE) * 100)
 
 
 def convert_from_hex(percentage: int):
-    return ceil((percentage / 255) * MAX_IOT_VALUE)
+    return int(round(percentage / 255.0 * MAX_IOT_VALUE)) & 0xFFFF
 
 
 def convert_to_hex(value: int):
-    return floor((value * 255) / MAX_IOT_VALUE)
+    return round((value & 0xFFFF) / (1.0 * MAX_IOT_VALUE) * 255)
 
 
 def safely_get_json_value(json, key, callable_to_cast=None):

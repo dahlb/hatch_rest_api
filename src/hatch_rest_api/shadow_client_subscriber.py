@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from awscrt import mqtt
 from awsiot import iotshadow
@@ -11,7 +10,7 @@ from awsiot.iotshadow import (
     ShadowState,
 )
 
-from .types import SoundContent
+from .types import SoundContent, SimpleSoundContent
 
 from .callbacks import CallbacksMixin
 
@@ -28,18 +27,20 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         mac: str,
         shadow_client: IotShadowClient,
         favorites: list | None = None,
-        sounds: list[SoundContent | dict] | None = None,
+        sounds: list[SoundContent | SimpleSoundContent] | None = None,
     ):
         if favorites is None:
             favorites = []
         if sounds is None:
-            sounds = []
+            sounds = list[SoundContent | SimpleSoundContent]()
         self.device_name = device_name
         self.thing_name = thing_name
         self.mac = mac
         self.shadow_client = shadow_client
         self.favorites = favorites
         self.sounds = sounds
+        self.sounds_by_id = {s['id']: s for s in sounds if s.get('id')}
+        self.sounds_by_name = {s['title']: s for s in sounds if s.get('title')}
         _LOGGER.debug(f"creating {self.__class__.__name__}: {device_name}")
 
         def update_shadow_accepted(response: UpdateShadowResponse):
