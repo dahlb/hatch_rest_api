@@ -5,6 +5,7 @@ from .rest_mini import RestMini
 from .rest_plus import RestPlus
 from .rest_iot import RestIot
 from .restore_iot import RestoreIot
+from .restore_v5 import RestoreV5
 from .util_bootstrap import get_rest_devices
 from .const import (
     RestMiniAudioTrack,
@@ -14,3 +15,4 @@ from .const import (
     RIoTAudioTrack,
     REST_IOT_AUDIO_TRACKS
 )
+RestDevice = RestMini | RestPlus | RestIot | RestoreIot | RestoreV5

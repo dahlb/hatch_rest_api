@@ -7,7 +7,13 @@ from .util import (
     convert_from_hex,
     convert_to_hex,
 )
-from .const import RIOT_FLAGS_CLOCK_ON, RIOT_FLAGS_CLOCK_24_HOUR
+from .const import (
+    RIOT_FLAGS_CLOCK_ON,
+    RIOT_FLAGS_CLOCK_24_HOUR,
+    NO_SOUND_ID,
+    NO_COLOR_ID,
+    CUSTOM_COLOR_ID,
+)
 from .shadow_client_subscriber import ShadowClientSubscriberMixin
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,8 +27,8 @@ class RestoreIot(ShadowClientSubscriberMixin):
     is_online: bool = False
     current_playing: str = "none"
 
-    color_id: int = 9998
-    sound_id: int = 19998
+    color_id: int = NO_COLOR_ID
+    sound_id: int = NO_SOUND_ID
     red: int = 0
     green: int = 0
     blue: int = 0
@@ -111,11 +117,11 @@ class RestoreIot(ShadowClientSubscriberMixin):
 
     @property
     def is_light_on(self):
-        return self.color_id != 9998 and self.color_id != 0
+        return self.color_id != NO_COLOR_ID and self.color_id != 0
 
     @property
     def is_playing(self):
-        return self.sound_id != 19998
+        return self.sound_id != NO_SOUND_ID
 
     @property
     def is_clock_on(self):
@@ -160,14 +166,13 @@ class RestoreIot(ShadowClientSubscriberMixin):
 
     def turn_light_off(self):
         _LOGGER.debug("Turning light off")
-        # 9999 = custom color 9998 = turn off
         # if favorite is playing then light can be turned off without turning off sound
         if self.current_playing == "routine":
             self._update(
                 {
                     "current": {
                         "color": {
-                            "id": 9998,
+                            "id": NO_COLOR_ID,
                             "r": 0,
                             "g": 0,
                             "b": 0,
@@ -182,7 +187,7 @@ class RestoreIot(ShadowClientSubscriberMixin):
                     "current": {
                         "playing": "none",
                         "color": {
-                            "id": 9998,
+                            "id": NO_COLOR_ID,
                             "r": 0,
                             "g": 0,
                             "b": 0,
@@ -195,8 +200,7 @@ class RestoreIot(ShadowClientSubscriberMixin):
     def set_color(
         self, red: int, green: int, blue: int, white: int = 0, brightness: int = 0
     ):
-        # 9999 = custom color 9998 = turn off
-        new_color_id: int = 9999
+        new_color_id = CUSTOM_COLOR_ID
         _LOGGER.debug(
             f"red: {red} green: {green} blue: {blue} brightness: {brightness} white: {white}"
         )
@@ -219,17 +223,18 @@ class RestoreIot(ShadowClientSubscriberMixin):
                     }
                 }
             )
-        self._update(
-            {
-                "current": {
-                    "color": {
-                        "id": new_color_id,
-                        "r": convert_from_hex(red),
-                        "g": convert_from_hex(green),
-                        "b": convert_from_hex(blue),
-                        "i": convert_from_percentage(brightness),
-                        "w": convert_from_hex(white),
+        else:
+            self._update(
+                {
+                    "current": {
+                        "color": {
+                            "id": new_color_id,
+                            "r": convert_from_hex(red),
+                            "g": convert_from_hex(green),
+                            "b": convert_from_hex(blue),
+                            "i": convert_from_percentage(brightness),
+                            "w": convert_from_hex(white),
+                        }
                     }
                 }
-            }
-        )
+            )

@@ -5,7 +5,11 @@ SENSITIVE_FIELD_NAMES = [
     "password",
 ]
 
-MAX_IOT_VALUE = 65535
+MAX_IOT_VALUE = 2 ** 16 - 1
+
+NO_COLOR_ID = 9998
+CUSTOM_COLOR_ID = 9999
+NO_SOUND_ID = 19998
 
 
 class RestMiniAudioTrack(Enum):
@@ -36,7 +40,7 @@ class RestPlusAudioTrack(Enum):
 
 
 class RIoTAudioTrack(Enum):
-    NONE = 19998
+    NONE = NO_SOUND_ID
     BrownNoise = 10200
     WhiteNoise = 10137
     Ocean = 10138
@@ -101,5 +105,6 @@ REST_PLUS_AUDIO_TRACKS = list(RestPlusAudioTrack)
 
 REST_IOT_AUDIO_TRACKS = list(RIoTAudioTrack)
 
-RIOT_FLAGS_CLOCK_24_HOUR = 2048
-RIOT_FLAGS_CLOCK_ON = 32768
+RIOT_FLAGS_CLOCK_24_HOUR = 1 << 11
+RIOT_FLAGS_CLOCK_ON = 1 << 15
+RIOT_FLAGS_CLOCK_IGNORE_TAP = 1 << 5
