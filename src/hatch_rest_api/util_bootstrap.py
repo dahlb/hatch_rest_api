@@ -1,23 +1,24 @@
-import logging
 import asyncio
-
+import logging
 from functools import partial
+from re import IGNORECASE, sub
+from uuid import uuid4
+
+from aiohttp import ClientSession
 from awscrt import io
 from awscrt.auth import AwsCredentialsProvider
-from awsiot.mqtt_connection_builder import websockets_with_default_aws_signing
 from awsiot.iotshadow import IotShadowClient
-from aiohttp import ClientSession
-from uuid import uuid4
-from re import sub, IGNORECASE
+from awsiot.mqtt_connection_builder import websockets_with_default_aws_signing
 
 from . import BaseError
+from .aws_http import AwsHttp
 from .const import NO_SOUND_ID
 from .contentful import Contentful
+from .errors import RateError
 from .hatch import Hatch
-from .aws_http import AwsHttp
+from .rest_iot import RestIot
 from .rest_mini import RestMini
 from .rest_plus import RestPlus
-from .rest_iot import RestIot
 from .restore_iot import RestoreIot
 from .restore_v5 import RestoreV5
 from .types import SimpleSoundContent
@@ -34,7 +35,9 @@ async def get_rest_devices(
 ):
     loop = asyncio.get_running_loop()
     if _LOGGER.isEnabledFor(logging.DEBUG):
-        await loop.run_in_executor(None, io.init_logging, io.LogLevel.Debug, "hatch_rest_api-aws_mqtt.log")
+        await loop.run_in_executor(
+            None, io.init_logging, io.LogLevel.Debug, "hatch_rest_api-aws_mqtt.log"
+        )
     api = Hatch(client_session=client_session)
     contentful = Contentful(client_session=client_session)
     token = await api.login(email=email, password=password)
@@ -44,7 +47,9 @@ async def get_rest_devices(
     aws_token = await api.token(auth_token=token)
     favorites_map = await _get_favorites_for_all_v2_devices(api, token, iot_devices)
     routines_map = await _get_routines_for_all_v2_devices(api, token, iot_devices)
-    sounds_map = await _get_sound_content_for_all_v2_devices(api, token, contentful, iot_devices)
+    sounds_map = await _get_sound_content_for_all_v2_devices(
+        api, token, contentful, iot_devices
+    )
     aws_http: AwsHttp = AwsHttp(api.api_session)
     aws_credentials = await aws_http.aws_credentials(
         region=aws_token["region"],
@@ -62,15 +67,20 @@ async def get_rest_devices(
     client_bootstrap = io.ClientBootstrap(event_loop_group, host_resolver)
     endpoint = aws_token["endpoint"].lstrip("https://")
     safe_email = sub("[^a-z]", "", email, flags=IGNORECASE).lower()
-    mqtt_connection = await loop.run_in_executor(None, partial(websockets_with_default_aws_signing,
-                                                               region=aws_token["region"],
-                                                               credentials_provider=credentials_provider,
-                                                               keep_alive_secs=30,
-                                                               client_bootstrap=client_bootstrap,
-                                                               endpoint=endpoint,
-                                                               client_id=f"hatch_rest_api/{safe_email}/{str(uuid4())}",
-                                                               on_connection_interrupted=on_connection_interrupted,
-                                                               on_connection_resumed=on_connection_resumed))
+    mqtt_connection = await loop.run_in_executor(
+        None,
+        partial(
+            websockets_with_default_aws_signing,
+            region=aws_token["region"],
+            credentials_provider=credentials_provider,
+            keep_alive_secs=30,
+            client_bootstrap=client_bootstrap,
+            endpoint=endpoint,
+            client_id=f"hatch_rest_api/{safe_email}/{str(uuid4())}",
+            on_connection_interrupted=on_connection_interrupted,
+            on_connection_resumed=on_connection_resumed,
+        ),
+    )
     try:
         connect_future = await loop.run_in_executor(None, mqtt_connection.connect)
         await loop.run_in_executor(None, connect_future.result)
@@ -104,7 +114,8 @@ async def get_rest_devices(
                 thing_name=iot_device["thingName"],
                 mac=iot_device["macAddress"],
                 shadow_client=shadow_client,
-                favorites=routines_map[iot_device["macAddress"]] + favorites_map[iot_device["macAddress"]],
+                favorites=routines_map[iot_device["macAddress"]]
+                + favorites_map[iot_device["macAddress"]],
                 sounds=sounds_map[iot_device["macAddress"]],
             )
         elif iot_device["product"] == "restoreV5":
@@ -113,7 +124,8 @@ async def get_rest_devices(
                 thing_name=iot_device["thingName"],
                 mac=iot_device["macAddress"],
                 shadow_client=shadow_client,
-                favorites=routines_map[iot_device["macAddress"]] + favorites_map[iot_device["macAddress"]],
+                favorites=routines_map[iot_device["macAddress"]]
+                + favorites_map[iot_device["macAddress"]],
                 sounds=sounds_map[iot_device["macAddress"]],
             )
         else:
@@ -155,52 +167,70 @@ async def _get_routines_for_all_v2_devices(api, token, iot_devices):
     return mac_to_routines
 
 
-async def _get_sound_content_for_all_v2_devices(api: Hatch, token: str, contentful: Contentful, iot_devices) -> dict[str, list[SimpleSoundContent]]:
+async def _get_sound_content_for_all_v2_devices(
+    api: Hatch, token: str, contentful: Contentful, iot_devices
+) -> dict[str, list[SimpleSoundContent]]:
     mac_to_sounds = {}
     for device in iot_devices:
         mac = device["macAddress"]
         if device["product"] in ["riot", "riotPlus"]:
-            content = await api.content(
-                auth_token=token, product="riot", content=["sound"]
-            )
-            sounds =  [s for s in content["contentItems"] if s['id'] != NO_SOUND_ID]
+            try:
+                content = await api.content(
+                    auth_token=token, product="riot", content=["sound"]
+                )
+                sounds = [s for s in content["contentItems"] if s["id"] != NO_SOUND_ID]
+            except RateError as e:
+                _LOGGER.warning(
+                    f"Rate limit error when fetching sounds for {mac}: {str(e)}"
+                )
+                sounds = []
         elif device["product"] == "restoreV5":
-            content = await contentful.graphql_query(
-                auth_token=token,
-                query="""
-                    query GetSounds($product: String!) {
-                      soundCollection(
-                        limit: 1000
-                        where: {
-                          title_exists: true
-                          title_not_contains: "DVT: "
-                          wavFile_exists: true
-                          tier: "free"
-                          devices: {
-                            devCode_in: [$product]
+            try:
+                content = await contentful.graphql_query(
+                    auth_token=token,
+                    query="""
+                        query GetSounds($product: String!) {
+                          soundCollection(
+                            limit: 1000
+                            where: {
+                              title_exists: true
+                              title_not_contains: "DVT: "
+                              wavFile_exists: true
+                              tier: "free"
+                              devices: {
+                                devCode_in: [$product]
+                              }
+                              hatchId_gt: 0
+                              hidden: false
+                            }
+                            order: [
+                              hatchId_ASC
+                            ]
+                          ) {
+                            total
+                            limit
+                            items {
+                              title
+                              id: hatchId
+                              wavFile {
+                                url
+                              }
+                            }
                           }
-                          hatchId_gt: 0
-                          hidden: false
                         }
-                        order: [
-                          hatchId_ASC
-                        ]
-                      ) {
-                        total
-                        limit
-                        items {
-                          title
-                          id: hatchId
-                          wavFile {
-                            url
-                          }
-                        }
-                      }
-                    }
-                """,
-                product=device["product"]
-            )
-            sounds =  [{**s, "wavUrl": s['wavFile']['url']} for s in content["soundCollection"]["items"] if s['id'] != NO_SOUND_ID]
+                    """,
+                    product=device["product"],
+                )
+                sounds = [
+                    {**s, "wavUrl": s["wavFile"]["url"]}
+                    for s in content["soundCollection"]["items"]
+                    if s["id"] != NO_SOUND_ID
+                ]
+            except RateError as e:
+                _LOGGER.warning(
+                    f"Rate limit error when fetching sounds for {mac}: {str(e)}"
+                )
+                sounds = []
         else:
             sounds = []
         _LOGGER.debug(f"Sounds for {mac}: {sounds}")

@@ -1,9 +1,10 @@
+import asyncio
 import logging
 
-from aiohttp import ClientSession, ClientResponse, ClientError, __version__
+from aiohttp import ClientError, ClientResponse, ClientSession, __version__
 from aiohttp.hdrs import USER_AGENT
 
-from .errors import AuthError
+from .errors import AuthError, RateError
 from .util_http import request_with_logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -14,7 +15,25 @@ API_URL: str = "https://data.hatchbaby.com/"
 def request_with_logging_and_errors(func):
     async def request_with_logging_wrapper(*args, **kwargs):
         response = await func(*args, **kwargs)
-        response_json = await response.json()
+
+        if response.status == 429:
+            _LOGGER.warning(f"Rate limited (429) for URL: {response.url}")
+            raise RateError("API rate limit exceeded. Please wait before retrying.")
+
+        try:
+            response_json = await response.json()
+        except Exception:
+            try:
+                response_text = await response.text()
+                _LOGGER.error(
+                    f"Failed to parse JSON response. Status: {response.status}, Content: {response_text[:500]}"
+                )
+            except Exception:
+                _LOGGER.error(f"Failed to parse response. Status: {response.status}")
+            raise ClientError(
+                f"Invalid response format from API (status: {response.status})"
+            )
+
         if response_json.get("status") == "success":
             return response
         if response_json.get("errorCode") == 1001:
@@ -82,7 +101,16 @@ class Hatch:
 
     async def iot_devices(self, auth_token: str):
         url = API_URL + "service/app/iotDevice/v2/fetch"
-        params = {"iotProducts": ["restMini", "restPlus", "riot", "riotPlus", "restoreIot", "restoreV5"]}
+        params = {
+            "iotProducts": [
+                "restMini",
+                "restPlus",
+                "riot",
+                "riotPlus",
+                "restoreIot",
+                "restoreV5",
+            ]
+        }
         response: ClientResponse = (
             await self._get_request_with_logging_and_errors_raised(
                 url=url, auth_token=auth_token, params=params
@@ -111,7 +139,7 @@ class Hatch:
         )
         response_json = await response.json()
         favorites = response_json["payload"]
-        favorites.sort(key=lambda x: x.get("displayOrder", float('inf')))
+        favorites.sort(key=lambda x: x.get("displayOrder", float("inf")))
         return favorites
 
     async def routines(self, auth_token: str, mac: str):
@@ -124,17 +152,37 @@ class Hatch:
         )
         response_json = await response.json()
         routines = response_json["payload"]
-        routines.sort(key=lambda x: x.get("displayOrder", float('inf')))
+        routines.sort(key=lambda x: x.get("displayOrder", float("inf")))
         return routines
 
-    async def content(self, auth_token: str, product: str, content: list):
+    async def content(
+        self, auth_token: str, product: str, content: list, max_retries: int = 3
+    ):
         # content options are ["sound", "color", "windDown"]
         url = API_URL + "service/app/content/v1/fetchByProduct"
         params = {"product": product, "contentTypes": content}
-        response: ClientResponse = (
-            await self._get_request_with_logging_and_errors_raised(
-                url=url, auth_token=auth_token, params=params
-            )
-        )
-        response_json = await response.json()
-        return response_json["payload"]
+
+        retry_count = 0
+        while True:
+            try:
+                response: ClientResponse = (
+                    await self._get_request_with_logging_and_errors_raised(
+                        url=url, auth_token=auth_token, params=params
+                    )
+                )
+                response_json = await response.json()
+                return response_json["payload"]
+            except RateError:
+                retry_count += 1
+                if retry_count > max_retries:
+                    _LOGGER.error(
+                        f"Maximum retries ({max_retries}) exceeded for content API call"
+                    )
+                    raise
+
+                # Calculate exponential backoff wait time (2^retry_count seconds)
+                wait_time = 2**retry_count
+                _LOGGER.warning(
+                    f"Rate limited. Retrying in {wait_time} seconds (attempt {retry_count}/{max_retries})"
+                )
+                await asyncio.sleep(wait_time)
