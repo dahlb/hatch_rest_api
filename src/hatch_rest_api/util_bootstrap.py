@@ -92,47 +92,56 @@ async def get_rest_devices(
     shadow_client = IotShadowClient(mqtt_connection)
 
     def create_rest_devices(iot_device):
+        mac_address = iot_device["macAddress"]
+        if mac_address in favorites_map:
+            favorites = list(favorites_map[mac_address])
+        else:
+            _LOGGER.debug(f"Iot device {iot_device} has no favorites")
+            favorites = []
+        if mac_address in routines_map:
+            routines = list(routines_map[mac_address])
+        else:
+            _LOGGER.debug(f"Iot device {iot_device} has no routines")
+            routines = []
         if iot_device["product"] == "restPlus":
             return RestPlus(
                 device_name=iot_device["name"],
                 thing_name=iot_device["thingName"],
-                mac=iot_device["macAddress"],
+                mac=mac_address,
                 shadow_client=shadow_client,
             )
         elif iot_device["product"] in ["riot", "riotPlus"]:
             return RestIot(
                 device_name=iot_device["name"],
                 thing_name=iot_device["thingName"],
-                mac=iot_device["macAddress"],
+                mac=mac_address,
                 shadow_client=shadow_client,
-                favorites=favorites_map[iot_device["macAddress"]],
-                sounds=sounds_map[iot_device["macAddress"]],
+                favorites=favorites,
+                sounds=sounds_map[mac_address],
             )
         elif iot_device["product"] == "restoreIot":
             return RestoreIot(
                 device_name=iot_device["name"],
                 thing_name=iot_device["thingName"],
-                mac=iot_device["macAddress"],
+                mac=mac_address,
                 shadow_client=shadow_client,
-                favorites=routines_map[iot_device["macAddress"]]
-                + favorites_map[iot_device["macAddress"]],
-                sounds=sounds_map[iot_device["macAddress"]],
+                favorites=routines + favorites,
+                sounds=sounds_map[mac_address],
             )
         elif iot_device["product"] == "restoreV5":
             return RestoreV5(
                 device_name=iot_device["name"],
                 thing_name=iot_device["thingName"],
-                mac=iot_device["macAddress"],
+                mac=mac_address,
                 shadow_client=shadow_client,
-                favorites=routines_map[iot_device["macAddress"]]
-                + favorites_map[iot_device["macAddress"]],
-                sounds=sounds_map[iot_device["macAddress"]],
+                favorites=routines + favorites,
+                sounds=sounds_map[mac_address],
             )
         else:
             return RestMini(
                 device_name=iot_device["name"],
                 thing_name=iot_device["thingName"],
-                mac=iot_device["macAddress"],
+                mac=mac_address,
                 shadow_client=shadow_client,
             )
 
