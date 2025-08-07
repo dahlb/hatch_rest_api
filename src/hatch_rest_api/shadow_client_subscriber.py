@@ -1,3 +1,4 @@
+import abc
 import logging
 
 from awscrt import mqtt
@@ -16,7 +17,7 @@ from .types import JsonType, SimpleSoundContent, SoundContent
 _LOGGER = logging.getLogger(__name__)
 
 
-class ShadowClientSubscriberMixin(CallbacksMixin):
+class ShadowClientSubscriberMixin(CallbacksMixin, abc.ABC):
     document_version: int = -1
 
     def __init__(
@@ -78,6 +79,9 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
             f"unsubscribe_topic_to_update_shadow_accepted: {unsubscribe_topic_to_get_shadow_accepted}"
         )
         self.refresh()
+
+    @abc.abstractmethod
+    def _update_local_state(self, state: dict[str, JsonType]) -> None: ...
 
     def _on_update_shadow_accepted(self, response: UpdateShadowResponse) -> None:
         _LOGGER.debug(f"update {self.device_name}, RESPONSE: {response}")

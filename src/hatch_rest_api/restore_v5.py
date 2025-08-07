@@ -185,13 +185,14 @@ class RestoreV5(ShadowClientSubscriberMixin):
             self.turn_off()
             return
 
-        if isinstance(sound_or_id_or_title, int):
-            sound = self.sounds_by_id.get(sound_or_id_or_title)
-        elif isinstance(sound_or_id_or_title, str):
-            sound = self.sounds_by_name.get(sound_or_id_or_title)
-        else:
-            # Assume it's a SoundContent or SimpleSoundContent object
-            sound = sound_or_id_or_title
+        match sound_or_id_or_title:
+            case int():
+                sound = self.sounds_by_id.get(sound_or_id_or_title)
+            case str():
+                sound = self.sounds_by_name.get(sound_or_id_or_title)
+            case dict():
+                # Assume it's a SoundContent or SimpleSoundContent object
+                sound = sound_or_id_or_title
 
         if (
             not sound

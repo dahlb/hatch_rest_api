@@ -2,7 +2,7 @@ import asyncio
 import logging
 from functools import partial
 from re import IGNORECASE, sub
-from typing import Protocol
+from typing import Protocol, TypedDict, cast
 from uuid import uuid4
 
 from aiohttp import ClientSession
@@ -120,47 +120,51 @@ async def get_rest_devices(
         else:
             _LOGGER.debug(f"Iot device {iot_device} has no routines")
             routines = []
-        if iot_device["product"] == "restPlus":
-            return RestPlus(
-                device_name=iot_device["name"],
-                thing_name=iot_device["thingName"],
-                mac=mac_address,
-                shadow_client=shadow_client,
-            )
-        elif iot_device["product"] in ["riot", "riotPlus"]:
-            return RestIot(
-                device_name=iot_device["name"],
-                thing_name=iot_device["thingName"],
-                mac=mac_address,
-                shadow_client=shadow_client,
-                favorites=favorites,
-                sounds=sounds_map[mac_address],
-            )
-        elif iot_device["product"] == "restoreIot":
-            return RestoreIot(
-                device_name=iot_device["name"],
-                thing_name=iot_device["thingName"],
-                mac=mac_address,
-                shadow_client=shadow_client,
-                favorites=routines + favorites,
-                sounds=sounds_map[mac_address],
-            )
-        elif iot_device["product"] == "restoreV5":
-            return RestoreV5(
-                device_name=iot_device["name"],
-                thing_name=iot_device["thingName"],
-                mac=mac_address,
-                shadow_client=shadow_client,
-                favorites=routines + favorites,
-                sounds=sounds_map[mac_address],
-            )
-        else:
-            return RestMini(
-                device_name=iot_device["name"],
-                thing_name=iot_device["thingName"],
-                mac=mac_address,
-                shadow_client=shadow_client,
-            )
+
+        match iot_device["product"]:
+            case "restPlus":
+                return RestPlus(
+                    device_name=iot_device["name"],
+                    thing_name=iot_device["thingName"],
+                    mac=mac_address,
+                    shadow_client=shadow_client,
+                )
+            case "riot" | "riotPlus":
+                return RestIot(
+                    device_name=iot_device["name"],
+                    thing_name=iot_device["thingName"],
+                    mac=mac_address,
+                    shadow_client=shadow_client,
+                    favorites=favorites,
+                    sounds=sounds_map[mac_address],
+                )
+            case "restoreIot":
+                return RestoreIot(
+                    device_name=iot_device["name"],
+                    thing_name=iot_device["thingName"],
+                    mac=mac_address,
+                    shadow_client=shadow_client,
+                    favorites=routines + favorites,
+                    sounds=sounds_map[mac_address],
+                )
+            case "restoreV5":
+                return RestoreV5(
+                    device_name=iot_device["name"],
+                    thing_name=iot_device["thingName"],
+                    mac=mac_address,
+                    shadow_client=shadow_client,
+                    favorites=routines + favorites,
+                    sounds=sounds_map[mac_address],
+                )
+            case "restMini":
+                return RestMini(
+                    device_name=iot_device["name"],
+                    thing_name=iot_device["thingName"],
+                    mac=mac_address,
+                    shadow_client=shadow_client,
+                )
+            case _:
+                raise BaseError(f"Unsupported device type: {iot_device['product']}")
 
     rest_devices = map(create_rest_devices, iot_devices)
     return (
@@ -218,7 +222,7 @@ async def _get_sound_content_for_all_v2_devices(
                 sounds = []
         elif device["product"] == "restoreV5":
             try:
-                content = await contentful.graphql_query(
+                gql_content = await contentful.graphql_query(
                     auth_token=token,
                     query="""
                         query GetSounds($product: String!) {
@@ -253,9 +257,28 @@ async def _get_sound_content_for_all_v2_devices(
                     """,
                     product=device["product"],
                 )
+
+                class GqlSoundFile(TypedDict):
+                    url: str
+
+                class GqlSoundContent(TypedDict):
+                    id: int
+                    title: str
+                    wavFile: GqlSoundFile
+
+                class GqlSoundCollection(TypedDict):
+                    total: int
+                    limit: int
+                    items: list[GqlSoundContent]
+
+                class GqlSoundCollectionResponse(TypedDict):
+                    soundCollection: GqlSoundCollection
+
                 sounds = [
-                    {**s, "wavUrl": s["wavFile"]["url"]}
-                    for s in content["soundCollection"]["items"]
+                    {"id": s["id"], "title": s["title"], "wavUrl": s["wavFile"]["url"]}
+                    for s in cast(GqlSoundCollectionResponse, gql_content)[
+                        "soundCollection"
+                    ]["items"]
                     if s["id"] != NO_SOUND_ID
                 ]
             except RateError as e:
