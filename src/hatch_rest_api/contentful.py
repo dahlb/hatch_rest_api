@@ -4,6 +4,7 @@ import logging
 from aiohttp import ClientError, ClientResponse, ClientSession
 
 from .errors import RateError
+from .types import JsonType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,13 +16,13 @@ AUTH_TOKEN: str = "w81AL3BhokPlPGus5Pbs2UjK9hOEH-WYoJ4OOpOQpUI"
 
 
 class Contentful:
-    def __init__(self, client_session: ClientSession = None):
+    def __init__(self, client_session: ClientSession | None = None):
         self.api_session = client_session or ClientSession()
 
-    async def cleanup_client_session(self):
+    async def cleanup_client_session(self) -> None:
         await self.api_session.close()
 
-    async def graphql_query(self, query, auth_token=None, max_retries=3, **variables):
+    async def graphql_query(self, query: str, auth_token: str | None = None, max_retries: int = 3, **variables: JsonType) -> dict[str, JsonType]:
         retry_count = 0
         while True:
             try:

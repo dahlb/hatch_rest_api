@@ -3,6 +3,7 @@ import logging
 from aiohttp import ClientSession, ClientResponse
 import json
 
+from .types import AwsIotCredentialsResponse
 from .util_http import request_with_logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -11,22 +12,22 @@ API_URL: str = "https://data.hatchbaby.com/"
 
 
 class AwsHttp:
-    def __init__(self, client_session: ClientSession = None):
+    def __init__(self, client_session: ClientSession | None = None):
         if client_session is None:
             self.api_session = ClientSession(raise_for_status=True)
         else:
             self.api_session = client_session
 
-    async def cleanup_client_session(self):
+    async def cleanup_client_session(self) -> None:
         await self.api_session.close()
 
     @request_with_logging
     async def _post_request_with_logging_and_errors_raised(
-        self, url: str, json_body: dict, headers: dict = None
+        self, url: str, json_body: dict, headers: dict | None = None
     ) -> ClientResponse:
         return await self.api_session.post(url=url, json=json_body, headers=headers)
 
-    async def aws_credentials(self, region: str, identityId: str, aws_token: str):
+    async def aws_credentials(self, region: str, identityId: str, aws_token: str) -> AwsIotCredentialsResponse:
         url = f"https://cognito-identity.{region}.amazonaws.com"
         json_body = {
             "IdentityId": identityId,
