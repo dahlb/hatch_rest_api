@@ -1,7 +1,6 @@
 import contextlib
 import logging
 
-from .types import SoundContent, SimpleSoundContent
 from .util import (
     convert_to_percentage,
     safely_get_json_value,
@@ -18,20 +17,27 @@ from .const import (
     RIoTAudioTrack,
 )
 from .shadow_client_subscriber import ShadowClientSubscriberMixin
+from .types import (
+    IotSoundUntil,
+    JsonType,
+    RestChargingStatus,
+    SimpleSoundContent,
+    SoundContent,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class RestIot(ShadowClientSubscriberMixin):
-    audio_track: RIoTAudioTrack = None
-    firmware_version: str = None
+    audio_track: RIoTAudioTrack | None = None
+    firmware_version: str | None = None
     volume: int = 0
 
     is_online: bool = False
-    current_playing: str = "none"
+    current_playing: str | None = "none"
     current_id: int = 0
     current_step: int = 0
-    battery_level: int = None
+    battery_level: int | None = None
     color_id: int = NO_COLOR_ID
     sound_id: int = NO_SOUND_ID
     red: int = 0
@@ -39,13 +45,13 @@ class RestIot(ShadowClientSubscriberMixin):
     blue: int = 0
     white: int = 0
     brightness: int = 0
-    charging_status: int = None  # Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base
-    clock: int = None
-    flags: int = None
+    charging_status: RestChargingStatus | None = None  # Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base
+    clock: int | None = None
+    flags: int | None = None
     toddler_lock: bool = False
-    toddler_lock_mode: str = None
+    toddler_lock_mode: str | None = None
 
-    def _update_local_state(self, state):
+    def _update_local_state(self, state: dict[str, JsonType]) -> None:
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
         if safely_get_json_value(state, "deviceInfo.f") is not None:
             self.firmware_version = safely_get_json_value(state, "deviceInfo.f")
@@ -105,7 +111,7 @@ class RestIot(ShadowClientSubscriberMixin):
         _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
 
-    def __repr__(self):
+    def __repr__(self) -> dict[str, JsonType]:
         return {
             "device_name": self.device_name,
             "thing_name": self.thing_name,
@@ -135,30 +141,30 @@ class RestIot(ShadowClientSubscriberMixin):
             "toddler_lock_mode": self.toddler_lock_mode,
         }
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__repr__()}"
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         return self.is_light_on or self.is_playing
 
     @property
-    def is_light_on(self):
+    def is_light_on(self) -> bool:
         return self.color_id != NO_COLOR_ID and self.color_id != 0
 
     @property
-    def is_playing(self):
+    def is_playing(self) -> bool:
         return self.sound_id != NO_SOUND_ID
 
     @property
-    def is_clock_on(self):
+    def is_clock_on(self) -> bool:
         return self.flags is not None and self.flags & RIOT_FLAGS_CLOCK_ON
 
     @property
-    def is_clock_24h(self):
+    def is_clock_24h(self) -> bool:
         return self.flags is not None and self.flags & RIOT_FLAGS_CLOCK_24_HOUR
 
-    def favorite_names(self, active_only: bool = True):
+    def favorite_names(self, active_only: bool = True) -> list[str]:
         names = []
         for favorite in self.favorites:
             if active_only and favorite["active"]:
@@ -167,17 +173,17 @@ class RestIot(ShadowClientSubscriberMixin):
                 names.append(f"{favorite['name']}-{favorite['id']}")
         return names
 
-    def set_volume(self, percentage: int):
+    def set_volume(self, percentage: float) -> None:
         _LOGGER.debug(f"Setting volume: {percentage}")
         self._update({"current": {"sound": {"v": convert_from_percentage(percentage)}}})
 
     # Expected string value for mode is "never" or "always". The API also supports "custom" for defining a time range
-    def set_toddler_lock(self, on: bool):
+    def set_toddler_lock(self, on: bool) -> None:
         _LOGGER.debug(f"Setting Toddler On Lock: {on}")
         mode = "always" if on else "never"
         self._update({"toddlerLock": {"turnOnMode": mode}})
 
-    def set_clock(self, brightness: int = 0):
+    def set_clock(self, brightness: int = 0) -> None:
         _LOGGER.debug(f"Setting clock on: {brightness}")
         self._update(
             {
@@ -188,17 +194,17 @@ class RestIot(ShadowClientSubscriberMixin):
             }
         )
 
-    def turn_clock_off(self):
+    def turn_clock_off(self) -> None:
         _LOGGER.debug("Turn off clock")
         self._update({"clock": {"flags": self.flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}})
 
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
-    def set_favorite(self, favorite_name_id: str):
+    def set_favorite(self, favorite_name_id: str) -> None:
         _LOGGER.debug(f"Setting favorite: {favorite_name_id}")
         fav_id = int(favorite_name_id.rsplit("-", 1)[1])
         self._update({"current": {"srId": fav_id, "step": 1, "playing": "routine"}})
 
-    def set_audio_track(self, audio_track: RIoTAudioTrack):
+    def set_audio_track(self, audio_track: RIoTAudioTrack) -> None:
         _LOGGER.debug(f"Setting audio track: {audio_track}")
         if audio_track == RIoTAudioTrack.NONE:
             self.turn_off()
@@ -217,7 +223,7 @@ class RestIot(ShadowClientSubscriberMixin):
                 "until": "indefinite",
             }}})
 
-    def set_sound(self, sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None, duration: int = 0, until="indefinite"):
+    def set_sound(self, sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None, duration: int = 0, until: IotSoundUntil = "indefinite") -> None:
         """
         Set a sound by passing SoundContent item from self.sounds, id, or title.
         """
@@ -253,7 +259,7 @@ class RestIot(ShadowClientSubscriberMixin):
             }
         )
 
-    def set_sound_url(self, sound_url: str = 'http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3'):
+    def set_sound_url(self, sound_url: str = 'http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3') -> None:
         """
         appears to work with some but not all public wav and mp3 urls
 
@@ -269,11 +275,11 @@ class RestIot(ShadowClientSubscriberMixin):
             }
         )
 
-    def turn_off(self):
+    def turn_off(self) -> None:
         _LOGGER.debug("Turning off sound")
         self._update({"current": {"srId": 0, "step": 0, "playing": "none"}})
 
-    def turn_light_off(self):
+    def turn_light_off(self) -> None:
         _LOGGER.debug("Turning light off")
         # if favorite is playing then light can be turned off without turning off sound
         if self.current_playing == "routine":
@@ -308,7 +314,7 @@ class RestIot(ShadowClientSubscriberMixin):
 
     def set_color(
         self, red: int, green: int, blue: int, white: int = 0, brightness: int = 0
-    ):
+    ) -> None:
         new_color_id = CUSTOM_COLOR_ID
         _LOGGER.debug(
             f"red: {red} green: {green} blue: {blue} brightness: {brightness} white: {white}"

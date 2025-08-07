@@ -1,18 +1,19 @@
+from collections.abc import Callable
 import logging
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class CallbacksMixin:
-    def _setup_callbacks(self):
-        self._callbacks = set()
+    def _setup_callbacks(self) -> None:
+        self._callbacks: set[Callable[[], None]] = set()
 
-    def register_callback(self, callback) -> None:
+    def register_callback(self, callback: Callable[[], None]) -> None:
         if not hasattr(self, "_callbacks"):
             self._setup_callbacks()
         self._callbacks.add(callback)
 
-    def remove_callback(self, callback) -> None:
+    def remove_callback(self, callback: Callable[[], None]) -> None:
         if not hasattr(self, "_callbacks"):
             self._setup_callbacks()
         self._callbacks.discard(callback)

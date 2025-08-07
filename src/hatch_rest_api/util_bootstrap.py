@@ -2,15 +2,18 @@ import asyncio
 import logging
 from functools import partial
 from re import IGNORECASE, sub
+from typing import Protocol
 from uuid import uuid4
 
 from aiohttp import ClientSession
 from awscrt import io
 from awscrt.auth import AwsCredentialsProvider
+from awscrt.exceptions import AwsCrtError
+from awscrt.mqtt import Connection, ConnectReturnCode
 from awsiot.iotshadow import IotShadowClient
 from awsiot.mqtt_connection_builder import websockets_with_default_aws_signing
 
-from . import BaseError
+from . import BaseError, RestDevice
 from .aws_http import AwsHttp
 from .const import NO_SOUND_ID
 from .contentful import Contentful
@@ -21,18 +24,32 @@ from .rest_mini import RestMini
 from .rest_plus import RestPlus
 from .restore_iot import RestoreIot
 from .restore_v5 import RestoreV5
-from .types import SimpleSoundContent
+from .types import IotDeviceInfo, RestIotRoutine, SimpleSoundContent
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class ConnectionInterruptedCallback(Protocol):
+    def __call__(self, *, connection: Connection, error: AwsCrtError) -> None: ...
+
+
+class ConnectionResumedCallback(Protocol):
+    def __call__(
+        self,
+        *,
+        connection: Connection,
+        return_code: ConnectReturnCode,
+        session_present: bool,
+    ) -> None: ...
 
 
 async def get_rest_devices(
     email: str,
     password: str,
-    client_session: ClientSession = None,
-    on_connection_interrupted=None,
-    on_connection_resumed=None,
-):
+    client_session: ClientSession | None = None,
+    on_connection_interrupted: ConnectionInterruptedCallback | None = None,
+    on_connection_resumed: ConnectionResumedCallback | None = None,
+) -> tuple[Hatch, Connection, list[RestDevice], int]:
     loop = asyncio.get_running_loop()
     if _LOGGER.isEnabledFor(logging.DEBUG):
         await loop.run_in_executor(
@@ -91,7 +108,7 @@ async def get_rest_devices(
 
     shadow_client = IotShadowClient(mqtt_connection)
 
-    def create_rest_devices(iot_device):
+    def create_rest_devices(iot_device: IotDeviceInfo) -> RestDevice:
         mac_address = iot_device["macAddress"]
         if mac_address in favorites_map:
             favorites = list(favorites_map[mac_address])
@@ -154,7 +171,9 @@ async def get_rest_devices(
     )
 
 
-async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
+async def _get_favorites_for_all_v2_devices(
+    api: Hatch, token: str, iot_devices: list[IotDeviceInfo]
+) -> dict[str, list[RestIotRoutine]]:
     mac_to_favorite = {}
     for device in iot_devices:
         if device["product"] in ["riot", "riotPlus", "restoreV5"]:
@@ -165,7 +184,9 @@ async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
     return mac_to_favorite
 
 
-async def _get_routines_for_all_v2_devices(api, token, iot_devices):
+async def _get_routines_for_all_v2_devices(
+    api: Hatch, token: str, iot_devices: list[IotDeviceInfo]
+) -> dict[str, list[RestIotRoutine]]:
     mac_to_routines = {}
     for device in iot_devices:
         if device["product"] in ["riot", "restoreIot", "restoreV5"]:
@@ -177,7 +198,7 @@ async def _get_routines_for_all_v2_devices(api, token, iot_devices):
 
 
 async def _get_sound_content_for_all_v2_devices(
-    api: Hatch, token: str, contentful: Contentful, iot_devices
+    api: Hatch, token: str, contentful: Contentful, iot_devices: list[IotDeviceInfo]
 ) -> dict[str, list[SimpleSoundContent]]:
     mac_to_sounds = {}
     for device in iot_devices:
@@ -187,7 +208,9 @@ async def _get_sound_content_for_all_v2_devices(
                 content = await api.content(
                     auth_token=token, product="riot", content=["sound"]
                 )
-                sounds = [s for s in content["contentItems"] if s["id"] != NO_SOUND_ID]
+                sounds: list[SimpleSoundContent] = [
+                    s for s in content["contentItems"] if s["id"] != NO_SOUND_ID
+                ]
             except RateError as e:
                 _LOGGER.warning(
                     f"Rate limit error when fetching sounds for {mac}: {str(e)}"

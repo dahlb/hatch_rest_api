@@ -1,6 +1,6 @@
 import logging
+from typing import cast
 
-from .types import SoundContent, SimpleSoundContent
 from .util import (
     convert_to_percentage,
     safely_get_json_value,
@@ -16,12 +16,13 @@ from .const import (
     CUSTOM_COLOR_ID,
 )
 from .shadow_client_subscriber import ShadowClientSubscriberMixin
+from .types import IotSoundUntil, JsonType, SimpleSoundContent, SoundContent
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class RestoreV5(ShadowClientSubscriberMixin):
-    firmware_version: str = None
+    firmware_version: str | None = None
     volume: int = 0
 
     is_online: bool = False
@@ -39,7 +40,7 @@ class RestoreV5(ShadowClientSubscriberMixin):
     clock_daytime: int = 0
     flags: int = 0
 
-    def _update_local_state(self, state):
+    def _update_local_state(self, state: dict[str, JsonType]) -> None:
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
         if safely_get_json_value(state, "deviceInfo.f") is not None:
             self.firmware_version = safely_get_json_value(state, "deviceInfo.f")
@@ -87,7 +88,7 @@ class RestoreV5(ShadowClientSubscriberMixin):
         _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
 
-    def __repr__(self):
+    def __repr__(self) -> dict[str, JsonType]:
         return {
             "device_name": self.device_name,
             "thing_name": self.thing_name,
@@ -113,38 +114,38 @@ class RestoreV5(ShadowClientSubscriberMixin):
             "is_clock_24h": self.is_clock_24h,
         }
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__repr__()}"
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         return self.is_light_on or self.is_playing
 
     @property
-    def is_light_on(self):
+    def is_light_on(self) -> bool:
         return self.color_id != NO_COLOR_ID and self.color_id != 0
 
     @property
-    def is_playing(self):
+    def is_playing(self) -> bool:
         return self.sound_id != NO_SOUND_ID
 
     @property
-    def is_clock_on(self):
+    def is_clock_on(self) -> bool:
         return self.flags is not None and self.flags & RIOT_FLAGS_CLOCK_ON
 
     @property
-    def is_clock_24h(self):
+    def is_clock_24h(self) -> bool:
         return self.flags is not None and self.flags & RIOT_FLAGS_CLOCK_24_HOUR
 
     @property
     def clock(self) -> int:
         return self.clock_daytime
 
-    def set_volume(self, percentage: int):
+    def set_volume(self, percentage: float) -> None:
         _LOGGER.debug(f"Setting volume: {percentage}")
         self._update({"current": {"sound": {"v": convert_from_percentage(percentage)}}})
 
-    def favorite_names(self, active_only: bool = True):
+    def favorite_names(self, active_only: bool = True) -> list[str]:
         names = []
         for favorite in self.favorites:
             if active_only and favorite["active"]:
@@ -153,7 +154,7 @@ class RestoreV5(ShadowClientSubscriberMixin):
                 names.append(f"{favorite['name']}-{favorite['id']}")
         return names
 
-    def set_clock(self, daytime_brightness: int|None = None, nighttime_brightness: int|None = None):
+    def set_clock(self, daytime_brightness: int | None = None, nighttime_brightness: int | None = None) -> None:
         if daytime_brightness is None:
             daytime_brightness = self.clock_daytime
         if nighttime_brightness is None:
@@ -163,20 +164,23 @@ class RestoreV5(ShadowClientSubscriberMixin):
             {"clock": {"flags": self.flags | RIOT_FLAGS_CLOCK_ON, "i": pack_dual_percentages(nighttime_brightness, daytime_brightness)}}
         )
 
-    def turn_clock_off(self):
+    def turn_clock_off(self) -> None:
         _LOGGER.debug("Turn off clock")
         self._update({"clock": {"flags": self.flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}})
 
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
-    def set_favorite(self, favorite_name_id: str):
+    def set_favorite(self, favorite_name_id: str) -> None:
         _LOGGER.debug(f"Setting favorite: {favorite_name_id}")
         fav_id = int(favorite_name_id.rsplit("-", 1)[1])
         self._update({"current": {"srId": fav_id, "step": 1, "playing": "routine"}})
 
-    def set_sound(self, sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None, duration: int = 0, until="indefinite"):
-        """
-        Set a sound by passing SoundContent item from self.sounds, id, or title.
-        """
+    def set_sound(
+        self,
+        sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None,
+        duration: int = 0,
+        until: IotSoundUntil = "indefinite",
+    ) -> None:
+        """Set a sound by passing SoundContent item from self.sounds, id, or title."""
         if sound_or_id_or_title is None or sound_or_id_or_title == NO_SOUND_ID or sound_or_id_or_title == "none":
             self.turn_off()
             return
@@ -189,7 +193,12 @@ class RestoreV5(ShadowClientSubscriberMixin):
             # Assume it's a SoundContent or SimpleSoundContent object
             sound = sound_or_id_or_title
 
-        if not sound or not isinstance(sound, dict) or not sound.get('id') or (not sound.get('wavUrl') and not sound.get('mp3Url')):
+        if (
+            not sound
+            or not isinstance(sound, dict)
+            or not sound.get("id")
+            or (not sound.get("wavUrl") and not sound.get("mp3Url"))
+        ):
             _LOGGER.error(f"Sound not found: {sound_or_id_or_title}")
             return
 
@@ -201,7 +210,7 @@ class RestoreV5(ShadowClientSubscriberMixin):
                     "sound": {
                         "id": sound["id"],
                         "mute": False,
-                        "url": sound.get("wavUrl") or sound.get("mp3Url"),
+                        "url": sound.get("wavUrl") or cast(SoundContent, sound).get("mp3Url"),
                         "duration": duration,
                         "until": until,
                     },
@@ -209,11 +218,11 @@ class RestoreV5(ShadowClientSubscriberMixin):
             }
         )
 
-    def turn_off(self):
+    def turn_off(self) -> None:
         _LOGGER.debug("Turning off sound")
         self._update({"current": {"srId": 0, "step": 0, "playing": "none"}})
 
-    def turn_light_off(self):
+    def turn_light_off(self) -> None:
         _LOGGER.debug("Turning light off")
         # if favorite is playing then light can be turned off without turning off sound
         if self.current_playing == "routine":
@@ -248,7 +257,7 @@ class RestoreV5(ShadowClientSubscriberMixin):
 
     def set_color(
         self, red: int, green: int, blue: int, white: int = 0, brightness: int = 0
-    ):
+    ) -> None:
         new_color_id = CUSTOM_COLOR_ID
         _LOGGER.debug(
             f"red: {red} green: {green} blue: {blue} brightness: {brightness} white: {white}"

@@ -10,9 +10,8 @@ from awsiot.iotshadow import (
     ShadowState,
 )
 
-from .types import SoundContent, SimpleSoundContent
-
 from .callbacks import CallbacksMixin
+from .types import JsonType, SimpleSoundContent, SoundContent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,11 +38,13 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         self.shadow_client = shadow_client
         self.favorites = favorites
         self.sounds = sounds
-        self.sounds_by_id = {s['id']: s for s in sounds if s.get('id')}
-        self.sounds_by_name = {s['title']: s for s in sounds if s.get('title')}
+        self.sounds_by_id: dict[int, SoundContent | SimpleSoundContent] = {s["id"]: s for s in sounds if s.get("id")}
+        self.sounds_by_name: dict[str, SoundContent | SimpleSoundContent] = {
+            s["title"]: s for s in sounds if s.get("title")
+        }
         _LOGGER.debug(f"creating {self.__class__.__name__}: {device_name}")
 
-        def update_shadow_accepted(response: UpdateShadowResponse):
+        def update_shadow_accepted(response: UpdateShadowResponse) -> None:
             self._on_update_shadow_accepted(response)
 
         (
@@ -61,7 +62,7 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
             f"unsubscribe_topic_to_update_shadow_accepted: {unsubscribe_topic_to_update_shadow_accepted}"
         )
 
-        def on_get_shadow_accepted(response: GetShadowResponse):
+        def on_get_shadow_accepted(response: GetShadowResponse) -> None:
             self._on_get_shadow_accepted(response)
 
         (
@@ -78,7 +79,7 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         )
         self.refresh()
 
-    def _on_update_shadow_accepted(self, response: UpdateShadowResponse):
+    def _on_update_shadow_accepted(self, response: UpdateShadowResponse) -> None:
         _LOGGER.debug(f"update {self.device_name}, RESPONSE: {response}")
         if response.version < self.document_version:
             _LOGGER.debug(f'ignoring update {self.device_name}, response version: {response.version} < document version: {self.document_version}')
@@ -89,7 +90,7 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
                 self.document_version = response.version
                 self._update_local_state(response.state.reported)
 
-    def _on_get_shadow_accepted(self, response: GetShadowResponse):
+    def _on_get_shadow_accepted(self, response: GetShadowResponse) -> None:
         _LOGGER.debug(f"get {self.device_name}, RESPONSE: {response}")
         if response.version < self.document_version:
             return
@@ -101,7 +102,7 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
                 self.document_version = response.version
                 self._update_local_state(response.state.reported)
 
-    def _update(self, desired_state):
+    def _update(self, desired_state: dict[str, JsonType]) -> None:
         _LOGGER.debug(f"updating: {desired_state}")
         request: UpdateShadowRequest = UpdateShadowRequest(
             thing_name=self.thing_name,
@@ -113,7 +114,7 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
             request, mqtt.QoS.AT_LEAST_ONCE
         ).result()
 
-    def refresh(self):
+    def refresh(self) -> None:
         _LOGGER.debug("Requesting current shadow state...")
         result = self.shadow_client.publish_get_shadow(
             request=iotshadow.GetShadowRequest(
