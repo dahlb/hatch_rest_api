@@ -1,22 +1,23 @@
 import logging
 
-from .util import convert_to_percentage, safely_get_json_value, convert_from_percentage
-from .shadow_client_subscriber import ShadowClientSubscriberMixin
 from .const import RestMiniAudioTrack
+from .shadow_client_subscriber import ShadowClientSubscriberMixin
+from .types import JsonType
+from .util import convert_from_percentage, convert_to_percentage, safely_get_json_value
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class RestMini(ShadowClientSubscriberMixin):
-    firmware_version: str = None
-    is_online: bool = None
+    firmware_version: str | None = None
+    is_online: bool | None = None
 
-    audio_track: RestMiniAudioTrack = None
-    volume: int = None
+    audio_track: RestMiniAudioTrack | None = None
+    volume: int | None = None
 
     current_playing: str = "none"
 
-    def __repr__(self):
+    def __repr__(self) -> dict[str, JsonType]:
         return {
             "device_name": self.device_name,
             "thing_name": self.thing_name,
@@ -29,10 +30,10 @@ class RestMini(ShadowClientSubscriberMixin):
             "document_version": self.document_version,
         }
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__repr__()}"
 
-    def _update_local_state(self, state):
+    def _update_local_state(self, state: dict[str, JsonType]) -> None:
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
         if safely_get_json_value(state, "connected") is not None:
             self.is_online = safely_get_json_value(state, "connected")
@@ -54,7 +55,7 @@ class RestMini(ShadowClientSubscriberMixin):
     def is_playing(self) -> bool:
         return self.current_playing != "none"
 
-    def set_volume(self, percentage: int):
+    def set_volume(self, percentage: float) -> None:
         self._update(
             {
                 "current": {
@@ -65,7 +66,7 @@ class RestMini(ShadowClientSubscriberMixin):
             }
         )
 
-    def set_audio_track(self, audio_track: RestMiniAudioTrack):
+    def set_audio_track(self, audio_track: RestMiniAudioTrack) -> None:
         if audio_track == RestMiniAudioTrack.NONE:
             self._update(
                 {

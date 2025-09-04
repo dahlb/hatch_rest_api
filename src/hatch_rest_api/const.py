@@ -12,7 +12,7 @@ CUSTOM_COLOR_ID = 9999
 NO_SOUND_ID = 19998
 
 
-class RestMiniAudioTrack(Enum):
+class RestMiniAudioTrack(int, Enum):
     NONE = 0
     Heartbeat = 10124
     Water = 10125
@@ -24,7 +24,7 @@ class RestMiniAudioTrack(Enum):
     Birds = 10131
 
 
-class RestPlusAudioTrack(Enum):
+class RestPlusAudioTrack(int, Enum):
     NONE = 0
     Stream = 2
     PinkNoise = 3
@@ -39,7 +39,7 @@ class RestPlusAudioTrack(Enum):
     RockABye = 14
 
 
-class RIoTAudioTrack(Enum):
+class RIoTAudioTrack(int, Enum):
     NONE = NO_SOUND_ID
     BrownNoise = 10200
     WhiteNoise = 10137
@@ -62,7 +62,7 @@ class RIoTAudioTrack(Enum):
     RockABye = 10194
 
     @classmethod
-    def sound_url_map(cls):
+    def sound_url_map(cls) -> dict[int, str]:
         """
         Hard-coded list, as some of these values are not returned by the 'sounds' API. These were found from manually browsing the app and playing each
         song, collecting the necessary values (name, id, url) from the Home Assistant debug logs for the `ha_hatch` custom component integration.

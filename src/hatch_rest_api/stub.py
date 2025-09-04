@@ -19,7 +19,7 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-async def testing():
+async def testing() -> None:
     loop = asyncio.get_running_loop()
     email = input("Email: ")
     password = getpass()
@@ -32,7 +32,7 @@ async def testing():
 
         for iot_device in iot_devices:
             if "reading" in iot_device.device_name:
-                def output():
+                def output() -> None:
                     print(f"******-{iot_device}")
 
                 iot_device.register_callback(output)
