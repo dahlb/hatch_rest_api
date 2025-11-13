@@ -13,6 +13,10 @@ from .const import (
     RestPlusAudioTrack,
     REST_PLUS_AUDIO_TRACKS,
     RIoTAudioTrack,
-    REST_IOT_AUDIO_TRACKS
+    REST_IOT_AUDIO_TRACKS,
+    TimeToRiseTrack,
+    TIME_TO_RISE_TRACKS,
+    TimeForBedTrack,
+    TIME_FOR_BED_TRACKS,
 )
 RestDevice = RestMini | RestPlus | RestIot | RestoreIot | RestoreV5
