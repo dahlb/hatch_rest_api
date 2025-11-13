@@ -105,6 +105,97 @@ REST_PLUS_AUDIO_TRACKS = list(RestPlusAudioTrack)
 
 REST_IOT_AUDIO_TRACKS = list(RIoTAudioTrack)
 
+
+class TimeToRiseTrack(Enum):
+    """Time-to-Rise tracks for waking up children peacefully."""
+    NONE = 0
+    MorningBirdcalls = 31229
+    WindChimes = 30555
+    AmbientSunrise = 30554
+    MagicalMorning = 32210
+    PeacefulFlute = 30495
+    YukiSaysGoodMorning = 30494
+    JoyfulMorning = 30496
+    Crickets = 30556
+    CalmingCreek = 30553
+    ChorusOfBirds = 30552
+
+    @classmethod
+    def track_url_map(cls):
+        """
+        URLs for Time-to-Rise tracks discovered via Contentful GraphQL API.
+        These tracks use MP3 format instead of WAV.
+        """
+        track_map = {
+            # @formatter:off
+            TimeToRiseTrack.MorningBirdcalls.value:     "https://downloads.ctfassets.net/hlsdh3zwyrtx/6bFP4jzJOs4QYSMRctqn5e/2f90337e25b0345ed2a2bcc9a350ef79/BeRIOTBirds_20220523.mp3",
+            TimeToRiseTrack.WindChimes.value:           "https://downloads.ctfassets.net/hlsdh3zwyrtx/RkFSHFj4I2q6QA9DWOdAW/f016c0c57b9ae76c3d62ec71e4d147c9/BeRIOTWindChimesTTR_20220701.mp3",
+            TimeToRiseTrack.AmbientSunrise.value:       "https://downloads.ctfassets.net/hlsdh3zwyrtx/dUnnFSCAdfHUHV3KeTyZz/c4220727e18d422383e7c135245b6f03/BeRIOTAmbientSunriseTTR_20220701.mp3",
+            TimeToRiseTrack.MagicalMorning.value:       "https://downloads.ctfassets.net/hlsdh3zwyrtx/3ulDMFt5yOz8r8ujEesQg0/d338354cf925f6ee2a5393b4b5ed70d9/RIOT_BeaconTTR_SMA_001_MFV2_20231026.mp3",
+            TimeToRiseTrack.PeacefulFlute.value:        "https://downloads.ctfassets.net/hlsdh3zwyrtx/3zcCubh7Eti9GVJsVsWuz0/6b58f52fe3beec005368980b3f846972/BeRIOTFluteTTR_20220607.mp3",
+            TimeToRiseTrack.YukiSaysGoodMorning.value:  "https://downloads.ctfassets.net/hlsdh3zwyrtx/5LwHOXdzCEm8QZYmpvisMi/dcdf2af6b83478015e96d4d64754f29b/BeRIOTYukiTTR_20220608.mp3",
+            TimeToRiseTrack.JoyfulMorning.value:        "https://downloads.ctfassets.net/hlsdh3zwyrtx/7dHKC0dbi6LN4yNIZ5gRHz/622b9c3b5caabad46d2c56d32488c5f2/BeRIOTGameMusicTTR_20220607.mp3",
+            TimeToRiseTrack.Crickets.value:             "https://downloads.ctfassets.net/hlsdh3zwyrtx/3JmbsDSF3Nbtz6iWveVbpI/c13f88d1898d4facb83c8c8d42224c71/BeRIOTCrickets_20220701.mp3",
+            TimeToRiseTrack.CalmingCreek.value:         "https://downloads.ctfassets.net/hlsdh3zwyrtx/1hxTc4hs18CaeQIdjHFktM/3b5ea1870012c8b5b049028e77b1e453/BeRIOTCreekTTR_20220701.mp3",
+            TimeToRiseTrack.ChorusOfBirds.value:        "https://downloads.ctfassets.net/hlsdh3zwyrtx/3X2vJqiqq73Igqiwwr2Tjf/a29fb2fffe21d8bb08fe9618c59392ce/BeRIOTBirdsChorusTTR_20220701.mp3",
+            # @formatter:on
+        }
+        assert len(track_map) == len(TimeToRiseTrack) - 1, "Missing track URL for one or more TimeToRiseTrack"
+        assert set(track_map.keys()) == {track.value for track in TimeToRiseTrack if track != TimeToRiseTrack.NONE}, "Each TimeToRiseTrack must have a unique track URL in the map"
+        return track_map
+
+
+class TimeForBedTrack(Enum):
+    """Time-for-Bed tracks for helping children wind down for bedtime."""
+    NONE = 0
+    CalmingMelody = 30468
+    LunarLanding = 30574
+    WizardlyWindDown = 32211
+    GoodnightAtTheZoo = 30575
+    IfYoureSleepyAndYouKnowIt = 30576
+    YukiSaysGoodNight = 30467
+    AlejandroSaysGoodnight = 31524
+    MariSaysGoodnight = 31525
+    CountdownToBedtime = 32645
+    BedtimeBirdCalls = 30469
+    SpringBlossom = 31530
+    DreamySnowfall = 31228
+    SleighBells = 31227
+    GhoulsGoodnight = 32132
+
+    @classmethod
+    def track_url_map(cls):
+        """
+        URLs for Time-for-Bed tracks discovered via Contentful GraphQL API.
+        These tracks use MP3 format instead of WAV.
+        """
+        track_map = {
+            # @formatter:off
+            TimeForBedTrack.CalmingMelody.value:               "https://downloads.ctfassets.net/hlsdh3zwyrtx/51Ibsd3UCiRHoW0p8oZzOk/1054209064c982306b0b4bb60034544a/BeRIOTLullaby_20220523.mp3",
+            TimeForBedTrack.LunarLanding.value:                "https://downloads.ctfassets.net/hlsdh3zwyrtx/5jVMkiO6uZ7OJCPi9ZDGNg/579a1ba92d978db0467d1da5a0c24987/RIOT_BedtimeBeacon_LunarLanding_001_MFV2_20230714.mp3",
+            TimeForBedTrack.WizardlyWindDown.value:            "https://downloads.ctfassets.net/hlsdh3zwyrtx/46UjftJMHmZOtaBdUqyKvS/492c5f9ec81e0dc009bb85980f899ec8/RIOT_BeaconTFB_SMA_001_MFV2_20231026.mp3",
+            TimeForBedTrack.GoodnightAtTheZoo.value:           "https://downloads.ctfassets.net/hlsdh3zwyrtx/20VnNzs5kQS227wfTt56UG/9a7eb6d20c4cb98d97fed7379f8bc13c/RIOT_BedtimeBeacon_BTZ_001_MFV2_20230714.mp3",
+            TimeForBedTrack.IfYoureSleepyAndYouKnowIt.value:   "https://downloads.ctfassets.net/hlsdh3zwyrtx/8WIpBjDrBvoHZkqtjrzRY/cd199f910b3d794984ecf3265a18d54b/RIOT_BedtimeBeacon_IfYoureSleepy_001_MFV2_20230714.mp3",
+            TimeForBedTrack.YukiSaysGoodNight.value:           "https://downloads.ctfassets.net/hlsdh3zwyrtx/2yUnMc2rk8fUZDrWNfCRZW/026de8f255908b8533a3a9a61330b708/BeRIOTYuki1_20220523.mp3",
+            TimeForBedTrack.AlejandroSaysGoodnight.value:      "https://downloads.ctfassets.net/hlsdh3zwyrtx/4Qc41AnIMq8ciJmksgRJu5/adab0adbd858f3dd89236f43a2d2c0e5/RIOT_BedtimeBeacon_Alejandro_001_MFV2_20230714.mp3",
+            TimeForBedTrack.MariSaysGoodnight.value:           "https://downloads.ctfassets.net/hlsdh3zwyrtx/4Ibh018V6UV3OjUsLPHN5o/e4652174e29af36333b99c853c889684/RIOT_BedtimeBeacon_Mari_001_MFV2_20230714.mp3",
+            TimeForBedTrack.CountdownToBedtime.value:          "https://downloads.ctfassets.net/hlsdh3zwyrtx/3qqocW29tpRWg0ZhWNbnnM/9e22f2ac2f01a687921d7aa8132804ea/RIOT_Countdown_000_MFV1_20231219.mp3",
+            TimeForBedTrack.BedtimeBirdCalls.value:            "https://downloads.ctfassets.net/hlsdh3zwyrtx/6bFP4jzJOs4QYSMRctqn5e/2f90337e25b0345ed2a2bcc9a350ef79/BeRIOTBirds_20220523.mp3",
+            TimeForBedTrack.SpringBlossom.value:               "https://downloads.ctfassets.net/hlsdh3zwyrtx/5mzfIGB0UlE9T1NS2rBFwC/b4d85742a671f731c290e501ee32f605/BeRIOT_SpringBlossom_CGV2_20230317.mp3",
+            TimeForBedTrack.DreamySnowfall.value:              "https://downloads.ctfassets.net/hlsdh3zwyrtx/6EUTdOKJi9HsAi48mfnP8t/5df4b215d75d2309d3cadc7f6f4b9a10/RIOT_TFB_MerryandBright_CGV1_20221114.mp3",
+            TimeForBedTrack.SleighBells.value:                 "https://downloads.ctfassets.net/hlsdh3zwyrtx/5NANP23SRmJ3ltGkDWJUEp/1577ab256deabb4849a4e44587a23544/RIOT_TFB_WinterWonder_CGV1_20221114.mp3",
+            TimeForBedTrack.GhoulsGoodnight.value:             "https://downloads.ctfassets.net/hlsdh3zwyrtx/7JhJvrNhqj7OtLbexTZiRM/53e14ea17f92ec3449ac23f1f881cb1e/RIOT_BeaconTFB_GhoulsGoodnight_001_MFV1_20231018.mp3",
+            # @formatter:on
+        }
+        assert len(track_map) == len(TimeForBedTrack) - 1, "Missing track URL for one or more TimeForBedTrack"
+        assert set(track_map.keys()) == {track.value for track in TimeForBedTrack if track != TimeForBedTrack.NONE}, "Each TimeForBedTrack must have a unique track URL in the map"
+        return track_map
+
+
+TIME_TO_RISE_TRACKS = list(TimeToRiseTrack)
+
+TIME_FOR_BED_TRACKS = list(TimeForBedTrack)
+
 RIOT_FLAGS_CLOCK_24_HOUR = 1 << 11
 RIOT_FLAGS_CLOCK_ON = 1 << 15
 RIOT_FLAGS_CLOCK_IGNORE_TAP = 1 << 5
