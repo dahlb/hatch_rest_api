@@ -20,6 +20,7 @@ from .rest_iot import RestIot
 from .rest_mini import RestMini
 from .rest_plus import RestPlus
 from .restore_iot import RestoreIot
+from .restore_v4 import RestoreV4
 from .restore_v5 import RestoreV5
 from .types import SimpleSoundContent
 
@@ -128,6 +129,15 @@ async def get_rest_devices(
                 favorites=routines + favorites,
                 sounds=sounds_map[mac_address],
             )
+        elif iot_device["product"] == "restoreV4":
+            return RestoreV4(
+                device_name=iot_device["name"],
+                thing_name=iot_device["thingName"],
+                mac=mac_address,
+                shadow_client=shadow_client,
+                favorites=routines + favorites,
+                sounds=sounds_map[mac_address],
+            )
         elif iot_device["product"] == "restoreV5":
             return RestoreV5(
                 device_name=iot_device["name"],
@@ -157,7 +167,7 @@ async def get_rest_devices(
 async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
     mac_to_favorite = {}
     for device in iot_devices:
-        if device["product"] in ["riot", "riotPlus", "restoreV5"]:
+        if device["product"] in ["riot", "riotPlus", "restoreV4", "restoreV5"]:
             mac = device["macAddress"]
             favorites = await api.favorites(auth_token=token, mac=mac)
             _LOGGER.debug(f"Favorites for {mac}: {favorites}")
@@ -168,7 +178,7 @@ async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
 async def _get_routines_for_all_v2_devices(api, token, iot_devices):
     mac_to_routines = {}
     for device in iot_devices:
-        if device["product"] in ["riot", "restoreIot", "restoreV5"]:
+        if device["product"] in ["riot", "restoreIot", "restoreV4", "restoreV5"]:
             mac = device["macAddress"]
             routines = await api.routines(auth_token=token, mac=mac)
             _LOGGER.debug(f"Routines for {mac}: {routines}")
@@ -193,7 +203,7 @@ async def _get_sound_content_for_all_v2_devices(
                     f"Rate limit error when fetching sounds for {mac}: {str(e)}"
                 )
                 sounds = []
-        elif device["product"] == "restoreV5":
+        elif device["product"] in ["restoreV4", "restoreV5"]:
             try:
                 content = await contentful.graphql_query(
                     auth_token=token,
