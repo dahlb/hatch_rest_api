@@ -108,6 +108,7 @@ class Hatch:
                 "riot",
                 "riotPlus",
                 "restoreIot",
+                "restoreV4",
                 "restoreV5",
             ]
         }
