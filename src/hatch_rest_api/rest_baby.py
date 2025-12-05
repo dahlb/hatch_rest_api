@@ -186,7 +186,7 @@ class RestBaby(ShadowClientSubscriberMixin):
     def set_toddler_lock(self, on: bool):
         """
         Set toddler lock on or off.
-        Expected string value for mode is "never" or "always". 
+        Expected string value for mode is "never" or "always"
         The API also supports "custom" for defining a time range.
         """
         _LOGGER.debug(f"Setting Toddler Lock: {on}")
