@@ -99,11 +99,121 @@ class RIoTAudioTrack(Enum):
         return sound_map
 
 
+class RestBabyAudioTrack(Enum):
+    """
+    Audio tracks specifically for RestBaby device with correct HatchBaby sound IDs.
+    These use the newer CGV5/CGV6 sound IDs that the device actually accepts.
+    All sounds prefixed with HatchBaby_ from the asset URLs.
+    """
+    NONE = NO_SOUND_ID
+    AirplaneInt = 10518
+    AlpineMeadow = 10537
+    AnalogNoiseMachine = 10523
+    Birds = 10545
+    Brahms = 10544
+    Brown = 10519
+    CampfireCradle = 10538
+    CampfireLake = 10546
+    CanalBarge = 10547
+    CaribbeanOcean = 10531
+    CarInt = 10524
+    CatPurr = 10522
+    Creek = 10521
+    Crickets = 10553
+    Dishwasher = 10542
+    Dryer = 10517
+    Fan = 10535
+    ForestBreeze = 10526
+    ForestLake = 10525
+    Fridge = 10550
+    Green = 10533
+    Grey = 10548
+    HatchBlue = 10543
+    Heartbeat = 10511
+    Hush = 10513
+    Indigo = 10532
+    LakeBreeze = 10527
+    LaundryMachine = 10552
+    PinkNoise = 10514
+    PorchRain = 10512
+    PostTrekCampfire = 10551
+    RainClassic = 10539
+    Red = 10534
+    Rockabye = 10529
+    TentRain = 10520
+    Thunderstorm = 10549
+    TrainInt = 10528
+    Twinkle = 10536
+    Vacuum = 10530
+    Water = 10540
+    White = 10541
+    WombSounds = 10515
+
+    @classmethod
+    def sound_url_map(cls):
+        """
+        Sound URL map for RestBaby with HatchBaby CGV5/CGV6 URLs.
+        All URLs are from HatchBaby_ prefixed sounds retrieved via GraphQL.
+        """
+        sound_map = {
+            # @formatter:off
+            RestBabyAudioTrack.AirplaneInt.value:        "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recCkrr6mQRpBPXam/a4ff92e301401c5ec8e053684e1331d9/HatchBaby_AirplaneInt_CGV5_20250714.wav",
+            RestBabyAudioTrack.AlpineMeadow.value:       "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rec2NJpjFMlhMhIvu/4910337f15003c16f5c3cc93e3d8da94/HatchBaby_AlpineMeadow_CGV5_20250714.wav",
+            RestBabyAudioTrack.AnalogNoiseMachine.value: "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recga9YJXznNLCUAh/22982f0a74bfe39b2815641a494e98da/HatchBaby_AnalogNoiseMachine_CGV5_20250714.wav",
+            RestBabyAudioTrack.Birds.value:              "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_reciBEYioHMDU65oZ/a55fd0d5e51014149f1fa74e475835bb/HatchBaby_Birds_CGV5_20250714.wav",
+            RestBabyAudioTrack.Brahms.value:             "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recws7PgBFjDaNzZd/bdef8e0da670072516f955a8ff51311d/HatchBaby_Brahms_CGV5_20250714.wav",
+            RestBabyAudioTrack.Brown.value:              "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rec8VYXINtRE9nMYf/add454ce06b9cf3f0a651223fb677e39/HatchBaby_Brown_CGV5_20250714.wav",
+            RestBabyAudioTrack.CampfireCradle.value:     "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recXklfOv9NjoWE7s/97c4f6ac16aad90417d45bd4cea4ca75/HatchBaby_CampfireCradle_CGV5_20250714.wav",
+            RestBabyAudioTrack.CampfireLake.value:       "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recDwpMwEEXynJyz1/e14d3387718bfce7fd8da70cf85c1ebc/HatchBaby_CampfireLake_CGV5_20250714.wav",
+            RestBabyAudioTrack.CanalBarge.value:         "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recz925bLZrPfdja7/54b98451cc628a8ca957e90b189ea81e/HatchBaby_CanalBarge_CGV5_20250714.wav",
+            RestBabyAudioTrack.CaribbeanOcean.value:    "https://downloads.ctfassets.net/hlsdh3zwyrtx/AUDIO_recbp6WN1weQK36C8/66b6df7f1af7eb746e45e46adb4d3b5d/HatchBaby_CaribbeanOcean_CGV6_20250714.wav",
+            RestBabyAudioTrack.CarInt.value:             "https://downloads.ctfassets.net/hlsdh3zwyrtx/AUDIO_recPBX29UW4brDzHr/065237eabae1f44c72a065daa78a1bc8/HatchBaby_CarInt_CGV5_20250714.wav",
+            RestBabyAudioTrack.CatPurr.value:            "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rec8rqvrZj90hD2qy/0c7e50debf5a197f242d7eeb7069aae3/HatchBaby_CatPurr_CGV5_20250714.wav",
+            RestBabyAudioTrack.Creek.value:              "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recpROK8tLCG0Ikkw/70271bdbb0bc70b3d638368aea42de5c/HatchBaby_Creek_CGV5_20250714.wav",
+            RestBabyAudioTrack.Crickets.value:           "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recf5D9lGhUnl42vM/07617b5fbc96b4c24680ae7b4c8eb0c1/HatchBaby_Crickets_CGV5_20250714.wav",
+            RestBabyAudioTrack.Dishwasher.value:         "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_receszo1sNqAP1FXT/cd163efcf36188c2e59b6f3df312502c/HatchBaby_Dishwasher_CGV5_20250714.wav",
+            RestBabyAudioTrack.Dryer.value:              "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rec6wvWAx1r7nFRVx/681ae6b36cfb751697c70456cc9808b1/HatchBaby_Dryer_CGV5_20250714.wav",
+            RestBabyAudioTrack.Fan.value:                "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recL5WR3QDRvYEdE1/3fbdc5194a4595a941b9a03bc4ce0553/HatchBaby_Fan_CGV5_20250714.wav",
+            RestBabyAudioTrack.ForestBreeze.value:       "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recLPQYJwaxSHRha2/a775e84f6167cb49edf1f35fe7ba70d5/HatchBaby_ForestBreeze_CGV5_20250714.wav",
+            RestBabyAudioTrack.ForestLake.value:         "https://downloads.ctfassets.net/hlsdh3zwyrtx/AUDIO_recTEEEtS3RJIb10v/2c962e7b568e8ba76ae4e6a89384bb30/HatchBaby_ForestLake_CGV5_20250714.wav",
+            RestBabyAudioTrack.Fridge.value:             "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recPGQ5E7CYKIwu3I/11b0e82736cdedd07f6d4b80857cb5b2/HatchBaby_Fridge_CGV5_20250714.wav",
+            RestBabyAudioTrack.Green.value:              "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recyvc2dueYip12gO/c90086e4e15bd0e1ad11b226d266efd1/HatchBaby_Green_CGV5_20250714.wav",
+            RestBabyAudioTrack.Grey.value:               "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rec7Lp6WB4yhudhYT/417f78d9bd8f0c2528d4cbcd59c4552d/HatchBaby_Grey_CGV5_20250714.wav",
+            RestBabyAudioTrack.HatchBlue.value:          "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recNhkCoim0rUUYLz/363f324ce9cf617fbbffb7a41fdb6a05/HatchBaby_HatchBlue_CGV5_20250714.wav",
+            RestBabyAudioTrack.Heartbeat.value:           "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recORwYcow5B8ue49/41cca394bc4639e71977447ad594cfb4/HatchBaby_Heartbeat_CGV6_20250714.wav",
+            RestBabyAudioTrack.Hush.value:               "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rec8PeOdDYlZdmIF4/617999a58ad320213b6966ccc72496fd/HatchBaby_Hush_CGV5_20250714.wav",
+            RestBabyAudioTrack.Indigo.value:              "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recU2W2gJIHxNu6WC/1ab764128294169660969675f2bcf7dc/HatchBaby_Indigo_CGV5_20250714.wav",
+            RestBabyAudioTrack.LakeBreeze.value:         "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rec7cvuPDpS6rWlAu/60c3a8fb792d76b04587770fcda63caf/HatchBaby_LakeBreeze_CGV5_20250714.wav",
+            RestBabyAudioTrack.LaundryMachine.value:     "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recIL1Wmr2MTDaOPU/1acc518eb2568f7431c2200291326905/HatchBaby_LaundryMachine_CGV5_20250714.wav",
+            RestBabyAudioTrack.PinkNoise.value:          "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recGbtUdgNkGzQF4T/0ccbdad8f7590d782c3d4a7e45d22191/HatchBaby_Pink_CGV5_20250714.wav",
+            RestBabyAudioTrack.PorchRain.value:          "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recfxEBI4pt10ssd3/0b6fde7e1ee0463da32ef44a2798c0df/HatchBaby_PorchRain_CGV5_20250714.wav",
+            RestBabyAudioTrack.PostTrekCampfire.value:   "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recbW7wwZxUYFZaBg/bbbb9e5d13e69cad1cee6510cbfd1375/HatchBaby_PostTrekCampfire_CGV5_20250714.wav",
+            RestBabyAudioTrack.RainClassic.value:        "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rec1st6colyQVEXN1/f00c5b9cf69ea2cd62bd297f27f42b8c/HatchBaby_RainClassic_CGV5_20250714.wav",
+            RestBabyAudioTrack.Red.value:                "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recrLDgSCSBOtP9CK/2c9146d599fb569c455be40aced99acd/HatchBaby_Red_CGV6_20250714.wav",
+            RestBabyAudioTrack.Rockabye.value:           "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rec0wT4zsWkE7CJlf/31234b78f0571d36b694a74e0adb2c6e/HatchBaby_Rockabye_CGV6_20250714.wav",
+            RestBabyAudioTrack.TentRain.value:           "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recTR4UkSCjIxtEub/862c0ab96b89d838c76588e3697cffc9/HatchBaby_TentRain_CGV5_20250714.wav",
+            RestBabyAudioTrack.Thunderstorm.value:       "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recEBgqDFoS6FckKM/5899e9a18d54bbfcafbe6e99f5c873f8/HatchBaby_Thunderstorm_CGV5_20250714.wav",
+            RestBabyAudioTrack.TrainInt.value:           "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recL19HDFIUe5QiHj/8f85f965871141798a939df541f70751/HatchBaby_TrainInt_CGV5_20250714.wav",
+            RestBabyAudioTrack.Twinkle.value:            "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recSQ10W827odb7T4/495d420cae7e720196d606cda3be2422/HatchBaby_Twinkle_CGV5_20250714.wav",
+            RestBabyAudioTrack.Vacuum.value:             "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recMKg0YgpHzFfW6Y/7302cd8cf4d8ad3154bf4cf1bd583dd3/HatchBaby_Vacuum_CGV5_20250714.wav",
+            RestBabyAudioTrack.Water.value:              "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recm76vEGRZrLWk3z/41f6d321b5140d59e83664d4b93545d4/HatchBaby_Water_CGV5_20250714.wav",
+            RestBabyAudioTrack.White.value:               "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recwIPykzbAPeCr98/886268ccd5b2a8d90b085e31f22923f9/HatchBaby_White_CGV5_20250714.wav",
+            RestBabyAudioTrack.WombSounds.value:         "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rechQsmhY4mL0BPFQ/56bf31fae71f74ad78edcbfaa1da85bc/HatchBaby_WombSounds_CGV5_20250714.wav",
+            # @formatter:on
+        }
+        # Note: Some tracks are aliases (same ID), so we need unique values only
+        unique_track_values = {track.value for track in RestBabyAudioTrack if track != RestBabyAudioTrack.NONE}
+        assert set(sound_map.keys()) == unique_track_values, f"Sound URL map keys don't match unique track values. Missing: {unique_track_values - set(sound_map.keys())}, Extra: {set(sound_map.keys()) - unique_track_values}"
+        return sound_map
+
+
 REST_MINI_AUDIO_TRACKS = list(RestMiniAudioTrack)
 
 REST_PLUS_AUDIO_TRACKS = list(RestPlusAudioTrack)
 
 REST_IOT_AUDIO_TRACKS = list(RIoTAudioTrack)
+
+REST_BABY_AUDIO_TRACKS = list(RestBabyAudioTrack)
 
 
 class TimeToRiseTrack(Enum):

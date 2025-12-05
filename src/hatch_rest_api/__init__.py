@@ -4,6 +4,7 @@ from .hatch import Hatch
 from .rest_mini import RestMini
 from .rest_plus import RestPlus
 from .rest_iot import RestIot
+from .rest_baby import RestBaby
 from .restore_iot import RestoreIot
 from .restore_v5 import RestoreV5
 from .util_bootstrap import get_rest_devices
@@ -14,9 +15,11 @@ from .const import (
     REST_PLUS_AUDIO_TRACKS,
     RIoTAudioTrack,
     REST_IOT_AUDIO_TRACKS,
+    RestBabyAudioTrack,
+    REST_BABY_AUDIO_TRACKS,
     TimeToRiseTrack,
     TIME_TO_RISE_TRACKS,
     TimeForBedTrack,
     TIME_FOR_BED_TRACKS,
 )
-RestDevice = RestMini | RestPlus | RestIot | RestoreIot | RestoreV5
+RestDevice = RestMini | RestPlus | RestIot | RestBaby | RestoreIot | RestoreV5

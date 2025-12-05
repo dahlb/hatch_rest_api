@@ -107,6 +107,7 @@ class Hatch:
                 "restPlus",
                 "riot",
                 "riotPlus",
+                "restBaby",
                 "restoreIot",
                 "restoreV4",
                 "restoreV5",
