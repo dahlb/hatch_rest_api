@@ -159,7 +159,7 @@ class RestBaby(ShadowClientSubscriberMixin):
             if sound.get('id') and sound.get('wavUrl')
         })
         _LOGGER.debug(f'Available Sounds: {sound_url_map}')
-        
+
         # Use provided volume or current volume
         volume_to_use = volume if volume is not None else self.volume
         self._update({"current": {"playing": "remote", "step": 0, "sound": {
