@@ -13,6 +13,7 @@ from .const import (
     NO_SOUND_ID,
     NO_COLOR_ID,
     CUSTOM_COLOR_ID,
+    RIOT_FLAGS_CLOCK_ON,
     RIoTAudioTrack,
     RestBabyAudioTrack,
 )
@@ -39,6 +40,10 @@ class RestBaby(ShadowClientSubscriberMixin):
     white: int = 0
     brightness: int = 0
     charging_status: int = None  # Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base
+    clock: int = None
+    flags: int = None
+    toddler_lock: bool = False
+    toddler_lock_mode: str = None
 
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
@@ -48,6 +53,12 @@ class RestBaby(ShadowClientSubscriberMixin):
             self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
         if safely_get_json_value(state, "deviceInfo.powerStatus") is not None:
             self.charging_status = safely_get_json_value(state, "deviceInfo.powerStatus", int)
+        if safely_get_json_value(state, "toddlerLockOn") is not None:
+            self.toddler_lock = safely_get_json_value(state, "toddlerLockOn", bool)
+        if safely_get_json_value(state, "toddlerLock.turnOnMode") is not None:
+            self.toddler_lock_mode = safely_get_json_value(
+                state, "toddlerLock.turnOnMode", str
+            )
         if safely_get_json_value(state, "current.playing") is not None:
             self.current_playing = safely_get_json_value(state, "current.playing")
         if safely_get_json_value(state, "current.srId") is not None:
@@ -84,6 +95,12 @@ class RestBaby(ShadowClientSubscriberMixin):
             self.brightness = convert_to_percentage(
                 safely_get_json_value(state, "current.color.i", int)
             )
+        if safely_get_json_value(state, "clock.i") is not None:
+            self.clock = convert_to_percentage(
+                safely_get_json_value(state, "clock.i", int)
+            )
+        if safely_get_json_value(state, "clock.flags") is not None:
+            self.flags = safely_get_json_value(state, "clock.flags", int)
 
         _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
@@ -110,13 +127,18 @@ class RestBaby(ShadowClientSubscriberMixin):
             "brightness": self.brightness,
             "document_version": self.document_version,
             "charging_status": self.charging_status,
+            "clock": self.clock,
+            "flags": self.flags,
+            "is_clock_on": self.is_clock_on,
+            "toddler_lock": self.toddler_lock,
+            "toddler_lock_mode": self.toddler_lock_mode,
         }
 
     def __str__(self):
         return f"{self.__repr__()}"
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         return self.is_light_on or self.is_playing
 
     @property
@@ -126,6 +148,10 @@ class RestBaby(ShadowClientSubscriberMixin):
     @property
     def is_playing(self):
         return self.sound_id != NO_SOUND_ID
+
+    @property
+    def is_clock_on(self):
+        return self.flags is not None and self.flags & RIOT_FLAGS_CLOCK_ON
 
     def favorite_names(self, active_only: bool = True):
         names = []
@@ -139,6 +165,33 @@ class RestBaby(ShadowClientSubscriberMixin):
     def set_volume(self, percentage: int):
         _LOGGER.debug(f"Setting volume: {percentage}")
         self._update({"current": {"sound": {"v": convert_from_percentage(percentage)}}})
+
+    def set_clock(self, brightness: int = 0):
+        _LOGGER.debug(f"Setting clock on: {brightness}")
+        current_flags = self.flags if self.flags is not None else 0
+        self._update(
+            {
+                "clock": {
+                    "flags": current_flags | RIOT_FLAGS_CLOCK_ON,
+                    "i": convert_from_percentage(brightness),
+                }
+            }
+        )
+
+    def turn_clock_off(self):
+        _LOGGER.debug("Turn off clock")
+        current_flags = self.flags if self.flags is not None else 0
+        self._update({"clock": {"flags": current_flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}})
+
+    def set_toddler_lock(self, on: bool):
+        """
+        Set toddler lock on or off.
+        Expected string value for mode is "never" or "always"
+        The API also supports "custom" for defining a time range.
+        """
+        _LOGGER.debug(f"Setting Toddler Lock: {on}")
+        mode = "always" if on else "never"
+        self._update({"toddlerLock": {"turnOnMode": mode}})
 
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
     def set_favorite(self, favorite_name_id: str):
