@@ -27,6 +27,8 @@ from .types import SimpleSoundContent
 
 _LOGGER = logging.getLogger(__name__)
 
+io.init_logging(io.LogLevel.NoLogs, "stderr")
+
 
 async def get_rest_devices(
     email: str,
@@ -36,10 +38,8 @@ async def get_rest_devices(
     on_connection_resumed=None,
 ):
     loop = asyncio.get_running_loop()
-    if _LOGGER.isEnabledFor(logging.DEBUG):
-        await loop.run_in_executor(
-            None, io.init_logging, io.LogLevel.Debug, "hatch_rest_api-aws_mqtt.log"
-        )
+    aws_log_level = io.LogLevel.Debug if _LOGGER.isEnabledFor(logging.DEBUG) else io.LogLevel.NoLogs
+    await loop.run_in_executor(None, io.set_log_level, aws_log_level)
     api = Hatch(client_session=client_session)
     contentful = Contentful(client_session=client_session)
     token = await api.login(email=email, password=password)
