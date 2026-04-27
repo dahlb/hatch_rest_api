@@ -1,5 +1,5 @@
 setuptools>=68.0.0
 wheel
-ruff>=0.3.5
+ruff>=0.15.12
 aiohttp>=3.9.3
 awsiotsdk>=1.21.1
