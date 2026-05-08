@@ -149,6 +149,18 @@ class ScheduledRoutineAlarmTest(unittest.TestCase):
             days_of_week_to_weekdays(38),
             ["monday", "tuesday", "friday"],
         )
+        self.assertEqual(
+            days_of_week_to_weekdays(127),
+            [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+            ],
+        )
         self.assertEqual(days_of_week_to_weekdays(0), [])
         self.assertEqual(days_of_week_label(0), "Once")
         self.assertEqual(days_of_week_label(62), "Weekdays")

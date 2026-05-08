@@ -11,22 +11,22 @@ SCHEDULED_ROUTINE_ALARM_PRODUCTS: frozenset[str] = frozenset(
     {"restoreIot", "restoreV4", "restoreV5"}
 )
 WEEKDAY_BITS: dict[str, int] = {
-    "sunday": 1,
     "monday": 2,
     "tuesday": 4,
     "wednesday": 8,
     "thursday": 16,
     "friday": 32,
     "saturday": 64,
+    "sunday": 1,
 }
 WEEKDAY_SHORT_NAMES: dict[str, str] = {
-    "sunday": "Sun",
     "monday": "Mon",
     "tuesday": "Tue",
     "wednesday": "Wed",
     "thursday": "Thu",
     "friday": "Fri",
     "saturday": "Sat",
+    "sunday": "Sun",
 }
 WEEKDAYS_MASK = sum(WEEKDAY_BITS.values())
 WEEKDAYS_ONLY_MASK = (
