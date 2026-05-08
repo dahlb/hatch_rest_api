@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections.abc import Iterable
 from datetime import time
 from typing import Any
 
@@ -12,6 +13,7 @@ from .scheduled_routine import (
     ScheduledRoutineAlarm,
     alarm_routines,
     alarm_update_payload,
+    alarm_weekdays_update_payload,
     alarm_wake_time_update_payload,
 )
 from .util_http import request_with_logging
@@ -231,6 +233,42 @@ class Hatch:
             auth_token=auth_token,
             mutable_scheduled_routines=[
                 alarm_wake_time_update_payload(alarm, wake_time)
+            ],
+            routine_type=ALARM_ROUTINE_TYPE,
+        )
+        updated_routines = alarm_routines(payload.get("item") or [])
+
+        if payload.get("confirmDataVersion") and payload.get("dataVersion"):
+            try:
+                confirmed_routines = await self.confirm_data_version(
+                    auth_token=auth_token,
+                    mac=mac,
+                    data_version=payload["dataVersion"],
+                    success=True,
+                    return_all_routines=True,
+                )
+                if confirmed_routines:
+                    updated_routines = alarm_routines(confirmed_routines)
+            except ClientError as error:
+                _LOGGER.warning(
+                    "Could not confirm scheduled routine data version for %s",
+                    mac,
+                    exc_info=error,
+                )
+
+        return updated_routines
+
+    async def update_scheduled_routine_alarm_weekdays(
+        self,
+        auth_token: str,
+        mac: str,
+        alarm: ScheduledRoutineAlarm,
+        weekdays: Iterable[str],
+    ) -> list[ScheduledRoutineAlarm]:
+        payload = await self.edit_scheduled_routines(
+            auth_token=auth_token,
+            mutable_scheduled_routines=[
+                alarm_weekdays_update_payload(alarm, weekdays)
             ],
             routine_type=ALARM_ROUTINE_TYPE,
         )

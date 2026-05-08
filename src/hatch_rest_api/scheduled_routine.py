@@ -1,4 +1,5 @@
 from datetime import datetime, time, timedelta
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 if TYPE_CHECKING:
@@ -9,6 +10,33 @@ ALARM_ROUTINE_TYPE = "alarm"
 SCHEDULED_ROUTINE_ALARM_PRODUCTS: frozenset[str] = frozenset(
     {"restoreIot", "restoreV4", "restoreV5"}
 )
+WEEKDAY_BITS: dict[str, int] = {
+    "sunday": 1,
+    "monday": 2,
+    "tuesday": 4,
+    "wednesday": 8,
+    "thursday": 16,
+    "friday": 32,
+    "saturday": 64,
+}
+WEEKDAY_SHORT_NAMES: dict[str, str] = {
+    "sunday": "Sun",
+    "monday": "Mon",
+    "tuesday": "Tue",
+    "wednesday": "Wed",
+    "thursday": "Thu",
+    "friday": "Fri",
+    "saturday": "Sat",
+}
+WEEKDAYS_MASK = sum(WEEKDAY_BITS.values())
+WEEKDAYS_ONLY_MASK = (
+    WEEKDAY_BITS["monday"]
+    | WEEKDAY_BITS["tuesday"]
+    | WEEKDAY_BITS["wednesday"]
+    | WEEKDAY_BITS["thursday"]
+    | WEEKDAY_BITS["friday"]
+)
+WEEKENDS_MASK = WEEKDAY_BITS["sunday"] | WEEKDAY_BITS["saturday"]
 
 
 class ScheduledRoutineAlarm(TypedDict, total=False):
@@ -94,6 +122,63 @@ def alarm_wake_time_update_payload(
     }
 
 
+def alarm_weekdays_update_payload(
+    alarm: ScheduledRoutineAlarm,
+    weekdays: Iterable[str],
+) -> dict[str, Any]:
+    if "id" not in alarm:
+        raise ValueError("Cannot update alarm without an id")
+
+    return {
+        "id": alarm["id"],
+        "name": alarm.get("name"),
+        "active": alarm.get("active"),
+        "enabled": alarm.get("enabled"),
+        "displayOrder": alarm.get("displayOrder"),
+        "startTime": alarm.get("startTime"),
+        "endTime": alarm.get("endTime"),
+        "daysOfWeek": weekdays_to_days_of_week(weekdays),
+    }
+
+
+def weekdays_to_days_of_week(weekdays: Iterable[str]) -> int:
+    days_of_week = 0
+    if isinstance(weekdays, str):
+        weekdays = [weekdays]
+    for weekday in weekdays:
+        normalized_weekday = str(weekday).strip().lower()
+        try:
+            days_of_week |= WEEKDAY_BITS[normalized_weekday]
+        except KeyError as error:
+            raise ValueError(f"Unsupported alarm weekday: {weekday}") from error
+    return days_of_week
+
+
+def days_of_week_to_weekdays(days_of_week: int | None) -> list[str]:
+    normalized_days_of_week = _normalize_days_of_week(days_of_week)
+    return [
+        weekday
+        for weekday, bit in WEEKDAY_BITS.items()
+        if normalized_days_of_week & bit
+    ]
+
+
+def days_of_week_label(days_of_week: int | None) -> str:
+    normalized_days_of_week = _normalize_days_of_week(days_of_week)
+    if normalized_days_of_week == 0:
+        return "Once"
+    if normalized_days_of_week == WEEKDAYS_ONLY_MASK:
+        return "Weekdays"
+    if normalized_days_of_week == WEEKENDS_MASK:
+        return "Weekends"
+    if normalized_days_of_week == WEEKDAYS_MASK:
+        return "Every day"
+    return ", ".join(
+        WEEKDAY_SHORT_NAMES[weekday]
+        for weekday in days_of_week_to_weekdays(normalized_days_of_week)
+    )
+
+
 def alarm_routines(routines: list[ScheduledRoutineAlarm]) -> list[ScheduledRoutineAlarm]:
     return [
         routine
@@ -105,6 +190,16 @@ def alarm_routines(routines: list[ScheduledRoutineAlarm]) -> list[ScheduledRouti
 def _is_one_time_alarm(alarm: ScheduledRoutineAlarm) -> bool:
     days_of_week = alarm.get("daysOfWeek")
     return days_of_week is None or days_of_week == 0
+
+
+def _normalize_days_of_week(days_of_week: int | None) -> int:
+    if days_of_week is None:
+        return 0
+    if isinstance(days_of_week, bool) or not isinstance(days_of_week, int):
+        raise TypeError(f"Unsupported alarm daysOfWeek value: {days_of_week}")
+    if days_of_week < 0 or days_of_week > WEEKDAYS_MASK:
+        raise ValueError(f"Unsupported alarm daysOfWeek value: {days_of_week}")
+    return days_of_week
 
 
 def _next_one_time_alarm_times(
@@ -333,6 +428,33 @@ class ScheduledRoutineAlarmMixin:
         else:
             self._replace_alarms(
                 [{**alarm, **alarm_wake_time_update_payload(alarm, wake_time)}]
+            )
+        self.publish_updates()
+
+    async def set_alarm_weekdays(
+        self,
+        alarm_id: int | str,
+        weekdays: Iterable[str],
+    ) -> None:
+        alarm = self.alarm_by_id(alarm_id)
+        if alarm is None:
+            await self.refresh_alarms()
+            alarm = self.alarm_by_id(alarm_id)
+        if alarm is None:
+            raise ValueError(f"Alarm {alarm_id} not found for {self.device_name}")
+
+        api, auth_token = self._configured_alarm_api()
+        updated_alarms = await api.update_scheduled_routine_alarm_weekdays(
+            auth_token=auth_token,
+            mac=self.mac,
+            alarm=alarm,
+            weekdays=weekdays,
+        )
+        if updated_alarms:
+            self._replace_alarms(updated_alarms)
+        else:
+            self._replace_alarms(
+                [{**alarm, **alarm_weekdays_update_payload(alarm, weekdays)}]
             )
         self.publish_updates()
 

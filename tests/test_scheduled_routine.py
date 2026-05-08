@@ -4,8 +4,12 @@ from datetime import datetime, time
 from hatch_rest_api.hatch import Hatch
 from hatch_rest_api.scheduled_routine import (
     SCHEDULED_ROUTINE_ALARM_PRODUCTS,
+    alarm_weekdays_update_payload,
     alarm_update_payload,
     alarm_wake_time_update_payload,
+    days_of_week_label,
+    days_of_week_to_weekdays,
+    weekdays_to_days_of_week,
 )
 
 
@@ -53,44 +57,48 @@ class FakeSession:
         self.calls.append(("POST", url, headers, json))
         if url.endswith("/service/app/routine/v2/editMultiple"):
             self.last_mrds = json["mrds"]
+            item = {
+                "id": json["mrds"][0]["id"],
+                "name": json["mrds"][0]["name"],
+                "active": json["mrds"][0]["active"],
+                "enabled": json["mrds"][0]["enabled"],
+                "type": "alarm",
+                "macAddress": "AA:BB:CC",
+                "startTime": json["mrds"][0]["startTime"],
+                "endTime": json["mrds"][0]["endTime"],
+            }
+            if "daysOfWeek" in json["mrds"][0]:
+                item["daysOfWeek"] = json["mrds"][0]["daysOfWeek"]
             return FakeResponse(
                 url,
                 {
                     "status": "success",
                     "payload": {
                         "confirmDataVersion": True,
-                        "item": [
-                            {
-                                "id": json["mrds"][0]["id"],
-                                "name": json["mrds"][0]["name"],
-                                "active": json["mrds"][0]["active"],
-                                "enabled": json["mrds"][0]["enabled"],
-                                "type": "alarm",
-                                "macAddress": "AA:BB:CC",
-                                "startTime": json["mrds"][0]["startTime"],
-                                "endTime": json["mrds"][0]["endTime"],
-                            }
-                        ],
+                        "item": [item],
                         "dataVersion": "version-1",
                     },
                 },
             )
+        item = {
+            "id": self.last_mrds[0]["id"],
+            "name": self.last_mrds[0]["name"],
+            "active": self.last_mrds[0]["active"],
+            "enabled": self.last_mrds[0]["enabled"],
+            "type": "alarm",
+            "macAddress": "AA:BB:CC",
+            "startTime": self.last_mrds[0]["startTime"],
+            "endTime": self.last_mrds[0]["endTime"],
+        }
+        if "daysOfWeek" in self.last_mrds[0]:
+            item["daysOfWeek"] = self.last_mrds[0]["daysOfWeek"]
         return FakeResponse(
             url,
             {
                 "status": "success",
                 "payload": [
                     {"id": 5, "type": "routine", "enabled": True},
-                    {
-                        "id": self.last_mrds[0]["id"],
-                        "name": self.last_mrds[0]["name"],
-                        "active": self.last_mrds[0]["active"],
-                        "enabled": self.last_mrds[0]["enabled"],
-                        "type": "alarm",
-                        "macAddress": "AA:BB:CC",
-                        "startTime": self.last_mrds[0]["startTime"],
-                        "endTime": self.last_mrds[0]["endTime"],
-                    },
+                    item,
                 ],
             },
         )
@@ -124,6 +132,76 @@ class ScheduledRoutineAlarmTest(unittest.TestCase):
         self.assertEqual(payload["displayOrder"], 7)
         self.assertEqual(payload["startTime"], "2026-05-08T07:30:00")
         self.assertEqual(payload["endTime"], "2026-05-08T08:00:00")
+
+    def test_weekdays_to_days_of_week_converts_weekday_lists_to_bitmask(self):
+        self.assertEqual(
+            weekdays_to_days_of_week(["monday", "tuesday", "friday"]),
+            38,
+        )
+        self.assertEqual(weekdays_to_days_of_week([]), 0)
+        self.assertEqual(
+            weekdays_to_days_of_week([" Sunday ", "SATURDAY"]),
+            65,
+        )
+
+    def test_days_of_week_to_weekdays_and_label_convert_bitmask(self):
+        self.assertEqual(
+            days_of_week_to_weekdays(38),
+            ["monday", "tuesday", "friday"],
+        )
+        self.assertEqual(days_of_week_to_weekdays(0), [])
+        self.assertEqual(days_of_week_label(0), "Once")
+        self.assertEqual(days_of_week_label(62), "Weekdays")
+        self.assertEqual(days_of_week_label(65), "Weekends")
+        self.assertEqual(days_of_week_label(127), "Every day")
+        self.assertEqual(days_of_week_label(42), "Mon, Wed, Fri")
+
+    def test_alarm_weekdays_update_payload_preserves_fields_and_updates_days(self):
+        alarm = {
+            "id": 2,
+            "name": "Wake",
+            "active": False,
+            "enabled": True,
+            "displayOrder": 7,
+            "startTime": "2026-05-08T07:30:00",
+            "endTime": "2026-05-08T08:00:00",
+            "daysOfWeek": 127,
+        }
+
+        payload = alarm_weekdays_update_payload(alarm, ["monday", "friday"])
+
+        self.assertEqual(payload["id"], 2)
+        self.assertEqual(payload["name"], "Wake")
+        self.assertIs(payload["active"], False)
+        self.assertIs(payload["enabled"], True)
+        self.assertEqual(payload["displayOrder"], 7)
+        self.assertEqual(payload["startTime"], "2026-05-08T07:30:00")
+        self.assertEqual(payload["endTime"], "2026-05-08T08:00:00")
+        self.assertEqual(payload["daysOfWeek"], 34)
+
+    def test_alarm_weekdays_update_payload_allows_one_time_alarm(self):
+        alarm = {
+            "id": 2,
+            "name": "Wake",
+            "active": True,
+            "enabled": True,
+            "startTime": "2026-05-08T07:30:00",
+            "endTime": "2026-05-08T08:00:00",
+            "daysOfWeek": 127,
+        }
+
+        payload = alarm_weekdays_update_payload(alarm, [])
+
+        self.assertEqual(payload["daysOfWeek"], 0)
+        self.assertIs(payload["enabled"], True)
+        self.assertEqual(payload["startTime"], "2026-05-08T07:30:00")
+        self.assertEqual(payload["endTime"], "2026-05-08T08:00:00")
+
+    def test_alarm_weekdays_update_payload_rejects_invalid_weekday(self):
+        alarm = {"id": 2}
+
+        with self.assertRaisesRegex(ValueError, "Unsupported alarm weekday"):
+            alarm_weekdays_update_payload(alarm, ["funday"])
 
     def test_one_time_alarm_enable_rolls_wake_time_to_tomorrow_when_time_passed(self):
         alarm = {
@@ -414,6 +492,60 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertIs(edit_body["mrds"][0]["enabled"], False)
         self.assertEqual(edit_body["mrds"][0]["startTime"], "2026-05-08T07:45:00")
         self.assertEqual(edit_body["mrds"][0]["endTime"], "2026-05-08T08:15:00")
+
+    async def test_alarm_weekdays_update_uses_edit_multiple_and_confirms_data_version(self):
+        session = FakeSession()
+        api = Hatch(client_session=session)
+        alarm = {
+            "id": 2,
+            "name": "Wake",
+            "active": True,
+            "enabled": False,
+            "type": "alarm",
+            "macAddress": "AA:BB:CC",
+            "displayOrder": 1,
+            "startTime": "2026-05-08T07:30:00",
+            "endTime": "2026-05-08T08:00:00",
+            "daysOfWeek": 127,
+        }
+
+        updated = await api.update_scheduled_routine_alarm_weekdays(
+            auth_token="token",
+            mac="AA:BB:CC",
+            alarm=alarm,
+            weekdays=["monday", "tuesday", "friday"],
+        )
+
+        self.assertEqual(updated, [
+            {
+                "id": 2,
+                "name": "Wake",
+                "active": True,
+                "enabled": False,
+                "type": "alarm",
+                "macAddress": "AA:BB:CC",
+                "startTime": "2026-05-08T07:30:00",
+                "endTime": "2026-05-08T08:00:00",
+                "daysOfWeek": 38,
+            }
+        ])
+        _, edit_url, _, edit_body = session.calls[0]
+        self.assertTrue(edit_url.endswith("/service/app/routine/v2/editMultiple"))
+        self.assertEqual(edit_body["type"], "alarm")
+        self.assertIs(edit_body["mrds"][0]["active"], True)
+        self.assertIs(edit_body["mrds"][0]["enabled"], False)
+        self.assertEqual(edit_body["mrds"][0]["startTime"], "2026-05-08T07:30:00")
+        self.assertEqual(edit_body["mrds"][0]["endTime"], "2026-05-08T08:00:00")
+        self.assertEqual(edit_body["mrds"][0]["daysOfWeek"], 38)
+
+        _, confirm_url, _, confirm_body = session.calls[1]
+        self.assertTrue(confirm_url.endswith("/service/app/v2/dataVersion"))
+        self.assertEqual(confirm_body, {
+            "dataVersion": "version-1",
+            "macAddress": "AA:BB:CC",
+            "success": True,
+            "returnAllRoutines": True,
+        })
 
 
 if __name__ == "__main__":
