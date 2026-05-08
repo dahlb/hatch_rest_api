@@ -5,6 +5,10 @@ if TYPE_CHECKING:
     from .hatch import Hatch
 
 ALARM_ROUTINE_TYPE = "alarm"
+# Android models scheduled-routine alarms this way for Restore, Restore 2, and Restore 3.
+SCHEDULED_ROUTINE_ALARM_PRODUCTS: frozenset[str] = frozenset(
+    {"restoreIot", "restoreV4", "restoreV5"}
+)
 
 
 class ScheduledRoutineAlarm(TypedDict, total=False):

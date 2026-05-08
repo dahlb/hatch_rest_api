@@ -2,7 +2,10 @@ import unittest
 from datetime import datetime
 
 from hatch_rest_api.hatch import Hatch
-from hatch_rest_api.scheduled_routine import alarm_update_payload
+from hatch_rest_api.scheduled_routine import (
+    SCHEDULED_ROUTINE_ALARM_PRODUCTS,
+    alarm_update_payload,
+)
 
 
 class FakeResponse:
@@ -87,6 +90,12 @@ class FakeSession:
 
 
 class ScheduledRoutineAlarmTest(unittest.TestCase):
+    def test_alarm_products_include_all_restore_generations(self):
+        self.assertEqual(
+            SCHEDULED_ROUTINE_ALARM_PRODUCTS,
+            {"restoreIot", "restoreV4", "restoreV5"},
+        )
+
     def test_alarm_update_payload_preserves_active_and_toggles_enabled(self):
         alarm = {
             "id": 2,

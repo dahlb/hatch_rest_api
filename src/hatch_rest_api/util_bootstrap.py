@@ -23,7 +23,11 @@ from .rest_plus import RestPlus
 from .restore_iot import RestoreIot
 from .restore_v4 import RestoreV4
 from .restore_v5 import RestoreV5
-from .scheduled_routine import ALARM_ROUTINE_TYPE, ScheduledRoutineAlarmMixin
+from .scheduled_routine import (
+    ALARM_ROUTINE_TYPE,
+    SCHEDULED_ROUTINE_ALARM_PRODUCTS,
+    ScheduledRoutineAlarmMixin,
+)
 from .types import SimpleSoundContent
 
 _LOGGER = logging.getLogger(__name__)
@@ -115,7 +119,7 @@ async def get_rest_devices(
             _LOGGER.debug(f"Iot device {iot_device} has no routines")
             routines = []
         if mac_address in alarms_map:
-            alarms = list(alarms_map[mac_address])
+            alarms = alarms_map[mac_address]
         else:
             _LOGGER.debug(f"Iot device {iot_device} has no alarms")
             alarms = []
@@ -222,7 +226,7 @@ async def _get_routines_for_all_v2_devices(api, token, iot_devices):
 async def _get_alarms_for_all_scheduled_routine_devices(api, token, iot_devices):
     mac_to_alarms = {}
     for device in iot_devices:
-        if device["product"] in ["restoreIot", "restoreV4", "restoreV5"]:
+        if device["product"] in SCHEDULED_ROUTINE_ALARM_PRODUCTS:
             mac = device["macAddress"]
             try:
                 alarms = await api.scheduled_routines(
