@@ -4,7 +4,7 @@ from functools import partial
 from re import IGNORECASE, sub
 from uuid import uuid4
 
-from aiohttp import ClientSession
+from aiohttp import ClientError, ClientSession
 from awscrt import io
 from awscrt.auth import AwsCredentialsProvider
 from awsiot.iotshadow import IotShadowClient
@@ -23,6 +23,7 @@ from .rest_plus import RestPlus
 from .restore_iot import RestoreIot
 from .restore_v4 import RestoreV4
 from .restore_v5 import RestoreV5
+from .scheduled_routine import ALARM_ROUTINE_TYPE, ScheduledRoutineAlarmMixin
 from .types import SimpleSoundContent
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,6 +50,9 @@ async def get_rest_devices(
     aws_token = await api.token(auth_token=token)
     favorites_map = await _get_favorites_for_all_v2_devices(api, token, iot_devices)
     routines_map = await _get_routines_for_all_v2_devices(api, token, iot_devices)
+    alarms_map = await _get_alarms_for_all_scheduled_routine_devices(
+        api, token, iot_devices
+    )
     sounds_map = await _get_sound_content_for_all_v2_devices(
         api, token, contentful, iot_devices
     )
@@ -93,6 +97,11 @@ async def get_rest_devices(
 
     shadow_client = IotShadowClient(mqtt_connection)
 
+    def _with_alarm_api(rest_device, alarms):
+        if isinstance(rest_device, ScheduledRoutineAlarmMixin):
+            rest_device.configure_alarm_api(api=api, auth_token=token, alarms=alarms)
+        return rest_device
+
     def create_rest_devices(iot_device):
         mac_address = iot_device["macAddress"]
         if mac_address in favorites_map:
@@ -105,6 +114,11 @@ async def get_rest_devices(
         else:
             _LOGGER.debug(f"Iot device {iot_device} has no routines")
             routines = []
+        if mac_address in alarms_map:
+            alarms = list(alarms_map[mac_address])
+        else:
+            _LOGGER.debug(f"Iot device {iot_device} has no alarms")
+            alarms = []
         if iot_device["product"] == "restPlus":
             return RestPlus(
                 device_name=iot_device["name"],
@@ -122,31 +136,40 @@ async def get_rest_devices(
                 sounds=sounds_map[mac_address],
             )
         elif iot_device["product"] == "restoreIot":
-            return RestoreIot(
-                device_name=iot_device["name"],
-                thing_name=iot_device["thingName"],
-                mac=mac_address,
-                shadow_client=shadow_client,
-                favorites=routines + favorites,
-                sounds=sounds_map[mac_address],
+            return _with_alarm_api(
+                RestoreIot(
+                    device_name=iot_device["name"],
+                    thing_name=iot_device["thingName"],
+                    mac=mac_address,
+                    shadow_client=shadow_client,
+                    favorites=routines + favorites,
+                    sounds=sounds_map[mac_address],
+                ),
+                alarms,
             )
         elif iot_device["product"] == "restoreV4":
-            return RestoreV4(
-                device_name=iot_device["name"],
-                thing_name=iot_device["thingName"],
-                mac=mac_address,
-                shadow_client=shadow_client,
-                favorites=routines + favorites,
-                sounds=sounds_map[mac_address],
+            return _with_alarm_api(
+                RestoreV4(
+                    device_name=iot_device["name"],
+                    thing_name=iot_device["thingName"],
+                    mac=mac_address,
+                    shadow_client=shadow_client,
+                    favorites=routines + favorites,
+                    sounds=sounds_map[mac_address],
+                ),
+                alarms,
             )
         elif iot_device["product"] == "restoreV5":
-            return RestoreV5(
-                device_name=iot_device["name"],
-                thing_name=iot_device["thingName"],
-                mac=mac_address,
-                shadow_client=shadow_client,
-                favorites=routines + favorites,
-                sounds=sounds_map[mac_address],
+            return _with_alarm_api(
+                RestoreV5(
+                    device_name=iot_device["name"],
+                    thing_name=iot_device["thingName"],
+                    mac=mac_address,
+                    shadow_client=shadow_client,
+                    favorites=routines + favorites,
+                    sounds=sounds_map[mac_address],
+                ),
+                alarms,
             )
         elif iot_device["product"] == "restBaby":
             return RestBaby(
@@ -194,6 +217,29 @@ async def _get_routines_for_all_v2_devices(api, token, iot_devices):
             _LOGGER.debug(f"Routines for {mac}: {routines}")
             mac_to_routines[mac] = routines
     return mac_to_routines
+
+
+async def _get_alarms_for_all_scheduled_routine_devices(api, token, iot_devices):
+    mac_to_alarms = {}
+    for device in iot_devices:
+        if device["product"] in ["restoreIot", "restoreV4", "restoreV5"]:
+            mac = device["macAddress"]
+            try:
+                alarms = await api.scheduled_routines(
+                    auth_token=token,
+                    mac=mac,
+                    types=[ALARM_ROUTINE_TYPE],
+                )
+            except RateError:
+                raise
+            except ClientError as e:
+                _LOGGER.warning(
+                    f"Could not fetch alarm routines for {mac}: {str(e)}"
+                )
+                alarms = None
+            _LOGGER.debug(f"Alarms for {mac}: {alarms}")
+            mac_to_alarms[mac] = alarms
+    return mac_to_alarms
 
 
 async def _get_sound_content_for_all_v2_devices(

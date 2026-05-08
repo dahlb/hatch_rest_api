@@ -14,12 +14,13 @@ from .const import (
     NO_COLOR_ID,
     CUSTOM_COLOR_ID,
 )
+from .scheduled_routine import ScheduledRoutineAlarmMixin
 from .shadow_client_subscriber import ShadowClientSubscriberMixin
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class RestoreIot(ShadowClientSubscriberMixin):
+class RestoreIot(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
     audio_track: str = None
     firmware_version: str = None
     volume: int = 0
