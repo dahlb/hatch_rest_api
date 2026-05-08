@@ -257,9 +257,17 @@ class Hatch:
                     updated_routines = alarm_routines(confirmed_routines)
             except ClientError as error:
                 _LOGGER.warning(
-                    "Could not confirm scheduled routine data version for %s",
+                    "Could not confirm scheduled routine data version for %s; "
+                    "refetching authoritative routines",
                     mac,
                     exc_info=error,
+                )
+                updated_routines = alarm_routines(
+                    await self.scheduled_routines(
+                        auth_token=auth_token,
+                        mac=mac,
+                        types=[ALARM_ROUTINE_TYPE],
+                    )
                 )
 
         return updated_routines
