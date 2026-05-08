@@ -4,6 +4,7 @@ from datetime import datetime, time
 from hatch_rest_api.hatch import Hatch
 from hatch_rest_api.scheduled_routine import (
     SCHEDULED_ROUTINE_ALARM_PRODUCTS,
+    ScheduledRoutineAlarmMixin,
     alarm_weekdays_update_payload,
     alarm_update_payload,
     alarm_wake_time_update_payload,
@@ -102,6 +103,32 @@ class FakeSession:
                 ],
             },
         )
+
+
+class EmptyAlarmUpdateApi:
+    def __init__(self):
+        self.calls = []
+
+    async def update_scheduled_routine_alarm_enabled(
+        self,
+        auth_token: str,
+        mac: str,
+        alarm: dict,
+        enabled: bool,
+    ):
+        self.calls.append((auth_token, mac, alarm["id"], enabled))
+        return []
+
+
+class FakeAlarmDevice(ScheduledRoutineAlarmMixin):
+    mac = "AA:BB:CC"
+    device_name = "Restore"
+
+    def __init__(self):
+        self.publish_count = 0
+
+    def publish_updates(self):
+        self.publish_count += 1
 
 
 class ScheduledRoutineAlarmTest(unittest.TestCase):
@@ -558,6 +585,44 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
             "success": True,
             "returnAllRoutines": True,
         })
+
+
+class ScheduledRoutineAlarmMixinTest(unittest.IsolatedAsyncioTestCase):
+    async def test_set_alarm_enabled_fallback_rolls_one_time_alarm_times(self):
+        api = EmptyAlarmUpdateApi()
+        device = FakeAlarmDevice()
+        device.configure_alarm_api(
+            api=api,
+            auth_token="token",
+            alarms=[
+                {
+                    "id": 2,
+                    "name": "Wake",
+                    "active": True,
+                    "enabled": False,
+                    "type": "alarm",
+                    "macAddress": "AA:BB:CC",
+                    "startTime": "2000-01-01T07:00:00",
+                    "endTime": "2000-01-01T07:30:00",
+                    "daysOfWeek": 0,
+                }
+            ],
+        )
+        before_update = datetime.now()
+
+        await device.set_alarm_enabled(2, True)
+
+        self.assertEqual(api.calls, [("token", "AA:BB:CC", 2, True)])
+        self.assertEqual(device.publish_count, 1)
+        updated_alarm = device.alarms[0]
+        self.assertIs(updated_alarm["enabled"], True)
+        self.assertEqual(updated_alarm["daysOfWeek"], 0)
+        self.assertNotEqual(updated_alarm["startTime"], "2000-01-01T07:00:00")
+        self.assertNotEqual(updated_alarm["endTime"], "2000-01-01T07:30:00")
+        updated_start = datetime.fromisoformat(updated_alarm["startTime"])
+        updated_end = datetime.fromisoformat(updated_alarm["endTime"])
+        self.assertGreater(updated_end, before_update)
+        self.assertEqual((updated_end - updated_start).total_seconds(), 1800)
 
 
 if __name__ == "__main__":

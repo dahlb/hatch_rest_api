@@ -405,7 +405,9 @@ class ScheduledRoutineAlarmMixin:
         if updated_alarms:
             self._replace_alarms(updated_alarms)
         else:
-            alarm["enabled"] = enabled
+            self._replace_alarms(
+                [{**alarm, **alarm_update_payload(alarm, enabled)}]
+            )
         self.publish_updates()
 
     async def set_alarm_wake_time(self, alarm_id: int | str, wake_time: time) -> None:

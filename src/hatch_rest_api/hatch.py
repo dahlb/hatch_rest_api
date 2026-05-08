@@ -195,32 +195,11 @@ class Hatch:
         alarm: ScheduledRoutineAlarm,
         enabled: bool,
     ) -> list[ScheduledRoutineAlarm]:
-        payload = await self.edit_scheduled_routines(
+        return await self._edit_and_confirm_alarm_routines(
             auth_token=auth_token,
+            mac=mac,
             mutable_scheduled_routines=[alarm_update_payload(alarm, enabled)],
-            routine_type=ALARM_ROUTINE_TYPE,
         )
-        updated_routines = alarm_routines(payload.get("item") or [])
-
-        if payload.get("confirmDataVersion") and payload.get("dataVersion"):
-            try:
-                confirmed_routines = await self.confirm_data_version(
-                    auth_token=auth_token,
-                    mac=mac,
-                    data_version=payload["dataVersion"],
-                    success=True,
-                    return_all_routines=True,
-                )
-                if confirmed_routines:
-                    updated_routines = alarm_routines(confirmed_routines)
-            except ClientError as error:
-                _LOGGER.warning(
-                    "Could not confirm scheduled routine data version for %s",
-                    mac,
-                    exc_info=error,
-                )
-
-        return updated_routines
 
     async def update_scheduled_routine_alarm_wake_time(
         self,
@@ -229,34 +208,13 @@ class Hatch:
         alarm: ScheduledRoutineAlarm,
         wake_time: time,
     ) -> list[ScheduledRoutineAlarm]:
-        payload = await self.edit_scheduled_routines(
+        return await self._edit_and_confirm_alarm_routines(
             auth_token=auth_token,
+            mac=mac,
             mutable_scheduled_routines=[
                 alarm_wake_time_update_payload(alarm, wake_time)
             ],
-            routine_type=ALARM_ROUTINE_TYPE,
         )
-        updated_routines = alarm_routines(payload.get("item") or [])
-
-        if payload.get("confirmDataVersion") and payload.get("dataVersion"):
-            try:
-                confirmed_routines = await self.confirm_data_version(
-                    auth_token=auth_token,
-                    mac=mac,
-                    data_version=payload["dataVersion"],
-                    success=True,
-                    return_all_routines=True,
-                )
-                if confirmed_routines:
-                    updated_routines = alarm_routines(confirmed_routines)
-            except ClientError as error:
-                _LOGGER.warning(
-                    "Could not confirm scheduled routine data version for %s",
-                    mac,
-                    exc_info=error,
-                )
-
-        return updated_routines
 
     async def update_scheduled_routine_alarm_weekdays(
         self,
@@ -265,11 +223,23 @@ class Hatch:
         alarm: ScheduledRoutineAlarm,
         weekdays: Iterable[str],
     ) -> list[ScheduledRoutineAlarm]:
-        payload = await self.edit_scheduled_routines(
+        return await self._edit_and_confirm_alarm_routines(
             auth_token=auth_token,
+            mac=mac,
             mutable_scheduled_routines=[
                 alarm_weekdays_update_payload(alarm, weekdays)
             ],
+        )
+
+    async def _edit_and_confirm_alarm_routines(
+        self,
+        auth_token: str,
+        mac: str,
+        mutable_scheduled_routines: list[dict[str, Any]],
+    ) -> list[ScheduledRoutineAlarm]:
+        payload = await self.edit_scheduled_routines(
+            auth_token=auth_token,
+            mutable_scheduled_routines=mutable_scheduled_routines,
             routine_type=ALARM_ROUTINE_TYPE,
         )
         updated_routines = alarm_routines(payload.get("item") or [])
