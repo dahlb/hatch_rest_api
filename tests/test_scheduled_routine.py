@@ -120,6 +120,21 @@ class EmptyAlarmUpdateApi:
         return []
 
 
+class RefreshAlarmApi:
+    def __init__(self, alarms: list[dict]):
+        self.alarms = alarms
+        self.calls = []
+
+    async def scheduled_routines(
+        self,
+        auth_token: str,
+        mac: str,
+        types: list[str],
+    ):
+        self.calls.append((auth_token, mac, types))
+        return list(self.alarms)
+
+
 class FakeAlarmDevice(ScheduledRoutineAlarmMixin):
     mac = "AA:BB:CC"
     device_name = "Restore"
@@ -588,6 +603,33 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
 
 
 class ScheduledRoutineAlarmMixinTest(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_initial_fetch_remains_alarm_capable_for_refresh(self):
+        api = RefreshAlarmApi(
+            [
+                {
+                    "id": 2,
+                    "name": "Wake",
+                    "type": "alarm",
+                    "macAddress": "AA:BB:CC",
+                }
+            ]
+        )
+        device = FakeAlarmDevice()
+
+        device.configure_alarm_api(api=api, auth_token="token", alarms=None)
+
+        self.assertIs(device.alarm_capable, True)
+        self.assertIs(device.alarms_loaded, False)
+        self.assertEqual(device.alarms, [])
+
+        refreshed = await device.refresh_alarms()
+
+        self.assertEqual(api.calls, [("token", "AA:BB:CC", ["alarm"])])
+        self.assertIs(device.alarms_loaded, True)
+        self.assertEqual(refreshed, api.alarms)
+        self.assertEqual(device.alarms, api.alarms)
+        self.assertEqual(device.publish_count, 1)
+
     async def test_set_alarm_enabled_fallback_rolls_one_time_alarm_times(self):
         api = EmptyAlarmUpdateApi()
         device = FakeAlarmDevice()

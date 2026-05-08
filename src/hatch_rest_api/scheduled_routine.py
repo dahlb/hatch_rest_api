@@ -350,6 +350,7 @@ def _format_like_original(original: str | None, value: datetime) -> str:
 
 class ScheduledRoutineAlarmMixin:
     alarms: list[ScheduledRoutineAlarm]
+    alarm_capable: bool = False
     alarms_loaded: bool = False
     _alarm_api: "Hatch | None" = None
     _alarm_auth_token: str | None = None
@@ -362,6 +363,7 @@ class ScheduledRoutineAlarmMixin:
     ) -> None:
         self._alarm_api = api
         self._alarm_auth_token = auth_token
+        self.alarm_capable = True
         self.alarms_loaded = alarms is not None
         self.alarms = list(alarms or [])
 
