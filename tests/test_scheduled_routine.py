@@ -1,10 +1,11 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, time
 
 from hatch_rest_api.hatch import Hatch
 from hatch_rest_api.scheduled_routine import (
     SCHEDULED_ROUTINE_ALARM_PRODUCTS,
     alarm_update_payload,
+    alarm_wake_time_update_payload,
 )
 
 
@@ -26,6 +27,7 @@ class FakeResponse:
 class FakeSession:
     def __init__(self):
         self.calls = []
+        self.last_mrds = []
 
     async def get(self, url: str, headers: dict, params: dict):
         self.calls.append(("GET", url, headers, params))
@@ -50,6 +52,7 @@ class FakeSession:
     async def post(self, url: str, json: dict, headers: dict):
         self.calls.append(("POST", url, headers, json))
         if url.endswith("/service/app/routine/v2/editMultiple"):
+            self.last_mrds = json["mrds"]
             return FakeResponse(
                 url,
                 {
@@ -64,6 +67,8 @@ class FakeSession:
                                 "enabled": json["mrds"][0]["enabled"],
                                 "type": "alarm",
                                 "macAddress": "AA:BB:CC",
+                                "startTime": json["mrds"][0]["startTime"],
+                                "endTime": json["mrds"][0]["endTime"],
                             }
                         ],
                         "dataVersion": "version-1",
@@ -77,12 +82,14 @@ class FakeSession:
                 "payload": [
                     {"id": 5, "type": "routine", "enabled": True},
                     {
-                        "id": 2,
-                        "name": "Wake",
-                        "active": True,
-                        "enabled": False,
+                        "id": self.last_mrds[0]["id"],
+                        "name": self.last_mrds[0]["name"],
+                        "active": self.last_mrds[0]["active"],
+                        "enabled": self.last_mrds[0]["enabled"],
                         "type": "alarm",
                         "macAddress": "AA:BB:CC",
+                        "startTime": self.last_mrds[0]["startTime"],
+                        "endTime": self.last_mrds[0]["endTime"],
                     },
                 ],
             },
@@ -104,7 +111,7 @@ class ScheduledRoutineAlarmTest(unittest.TestCase):
             "enabled": True,
             "displayOrder": 7,
             "startTime": "2026-05-08T07:30:00",
-            "endTime": None,
+            "endTime": "2026-05-08T08:00:00",
             "daysOfWeek": 127,
         }
 
@@ -116,14 +123,16 @@ class ScheduledRoutineAlarmTest(unittest.TestCase):
         self.assertIs(payload["enabled"], False)
         self.assertEqual(payload["displayOrder"], 7)
         self.assertEqual(payload["startTime"], "2026-05-08T07:30:00")
+        self.assertEqual(payload["endTime"], "2026-05-08T08:00:00")
 
-    def test_one_time_alarm_rolls_to_tomorrow_when_time_passed(self):
+    def test_one_time_alarm_enable_rolls_wake_time_to_tomorrow_when_time_passed(self):
         alarm = {
             "id": 2,
             "name": "Wake",
             "active": True,
             "enabled": False,
-            "startTime": "2026-05-08T07:30:00",
+            "startTime": "2026-05-08T07:00:00",
+            "endTime": "2026-05-08T07:30:00",
             "daysOfWeek": 0,
         }
 
@@ -133,15 +142,17 @@ class ScheduledRoutineAlarmTest(unittest.TestCase):
             now=datetime(2026, 5, 8, 8, 0, 0),
         )
 
-        self.assertEqual(payload["startTime"], "2026-05-09T07:30:00")
+        self.assertEqual(payload["startTime"], "2026-05-09T07:00:00")
+        self.assertEqual(payload["endTime"], "2026-05-09T07:30:00")
 
-    def test_one_time_alarm_rolls_to_today_when_time_is_future(self):
+    def test_one_time_alarm_enable_rolls_wake_time_to_today_when_time_is_future(self):
         alarm = {
             "id": 2,
             "name": "Wake",
             "active": True,
             "enabled": False,
-            "startTime": "2026-05-07T07:30:00",
+            "startTime": "2026-05-07T07:00:00",
+            "endTime": "2026-05-07T07:30:00",
             "daysOfWeek": 0,
         }
 
@@ -151,7 +162,143 @@ class ScheduledRoutineAlarmTest(unittest.TestCase):
             now=datetime(2026, 5, 8, 6, 0, 0),
         )
 
-        self.assertEqual(payload["startTime"], "2026-05-08T07:30:00")
+        self.assertEqual(payload["startTime"], "2026-05-08T07:00:00")
+        self.assertEqual(payload["endTime"], "2026-05-08T07:30:00")
+
+    def test_wake_time_update_preserves_sunrise_lead_for_repeating_alarm(self):
+        alarm = {
+            "id": 2,
+            "name": "Wake",
+            "active": True,
+            "enabled": False,
+            "displayOrder": 3,
+            "startTime": "2026-05-08T07:00:00",
+            "endTime": "2026-05-08T07:30:00",
+            "daysOfWeek": 127,
+        }
+
+        payload = alarm_wake_time_update_payload(alarm, time(8, 15))
+
+        self.assertEqual(payload["id"], 2)
+        self.assertEqual(payload["name"], "Wake")
+        self.assertIs(payload["active"], True)
+        self.assertIs(payload["enabled"], False)
+        self.assertEqual(payload["displayOrder"], 3)
+        self.assertEqual(payload["startTime"], "2026-05-08T07:45:00")
+        self.assertEqual(payload["endTime"], "2026-05-08T08:15:00")
+
+    def test_wake_time_update_rolls_one_time_alarm_to_next_occurrence(self):
+        alarm = {
+            "id": 2,
+            "name": "Wake",
+            "active": True,
+            "enabled": False,
+            "startTime": "2026-05-08T07:00:00",
+            "endTime": "2026-05-08T07:30:00",
+            "daysOfWeek": 0,
+        }
+
+        payload = alarm_wake_time_update_payload(
+            alarm,
+            time(6, 45),
+            now=datetime(2026, 5, 8, 8, 0, 0),
+        )
+
+        self.assertEqual(payload["startTime"], "2026-05-09T06:15:00")
+        self.assertEqual(payload["endTime"], "2026-05-09T06:45:00")
+
+    def test_wake_time_update_uses_sunrise_duration_when_end_time_is_missing(self):
+        alarm = {
+            "id": 2,
+            "name": "Wake",
+            "active": True,
+            "enabled": False,
+            "startTime": "2026-05-08T10:45:00",
+            "endTime": None,
+            "daysOfWeek": 62,
+            "steps": [
+                {
+                    "name": "Sunrise",
+                    "enabled": True,
+                    "color": {"duration": 2700, "ignore": False},
+                }
+            ],
+        }
+
+        payload = alarm_wake_time_update_payload(alarm, time(11, 15))
+
+        self.assertEqual(payload["startTime"], "2026-05-08T10:30:00")
+        self.assertIsNone(payload["endTime"])
+        self.assertIs(payload["enabled"], False)
+
+    def test_one_time_alarm_enable_uses_sunrise_duration_when_end_time_is_missing(self):
+        alarm = {
+            "id": 2,
+            "name": "Wake",
+            "active": True,
+            "enabled": False,
+            "startTime": "2026-05-08 10:45:00",
+            "endTime": None,
+            "daysOfWeek": 0,
+            "steps": [
+                {
+                    "name": "Sunrise",
+                    "enabled": True,
+                    "color": {"duration": 2700, "ignore": False},
+                }
+            ],
+        }
+
+        payload = alarm_update_payload(
+            alarm,
+            True,
+            now=datetime(2026, 5, 8, 12, 0, 0),
+        )
+
+        self.assertEqual(payload["startTime"], "2026-05-09 10:45:00")
+        self.assertIsNone(payload["endTime"])
+
+    def test_wake_time_update_requires_sunrise_duration_when_end_time_is_missing(self):
+        alarm = {
+            "id": 2,
+            "name": "Wake",
+            "active": True,
+            "enabled": False,
+            "startTime": "2026-05-08T10:45:00",
+            "endTime": None,
+            "daysOfWeek": 62,
+        }
+
+        with self.assertRaisesRegex(ValueError, "valid sunrise duration"):
+            alarm_wake_time_update_payload(alarm, time(11, 15))
+
+    def test_wake_time_update_requires_valid_start_time(self):
+        alarm = {
+            "id": 2,
+            "name": "Wake",
+            "active": True,
+            "enabled": False,
+            "startTime": "not-a-date",
+            "endTime": "2026-05-08T07:30:00",
+            "daysOfWeek": 127,
+        }
+
+        with self.assertRaisesRegex(ValueError, "valid startTime"):
+            alarm_wake_time_update_payload(alarm, time(6, 45))
+
+    def test_wake_time_update_requires_valid_end_time_when_end_time_is_present(self):
+        alarm = {
+            "id": 2,
+            "name": "Wake",
+            "active": True,
+            "enabled": False,
+            "startTime": "2026-05-08T07:00:00",
+            "endTime": "not-a-date",
+            "daysOfWeek": 127,
+        }
+
+        with self.assertRaisesRegex(ValueError, "valid endTime"):
+            alarm_wake_time_update_payload(alarm, time(6, 45))
 
 
 class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
@@ -184,7 +331,7 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
             "macAddress": "AA:BB:CC",
             "displayOrder": 1,
             "startTime": "2026-05-08T07:30:00",
-            "endTime": None,
+            "endTime": "2026-05-08T08:00:00",
             "daysOfWeek": 127,
         }
 
@@ -203,6 +350,8 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
                 "enabled": False,
                 "type": "alarm",
                 "macAddress": "AA:BB:CC",
+                "startTime": "2026-05-08T07:30:00",
+                "endTime": "2026-05-08T08:00:00",
             }
         ])
         _, edit_url, _, edit_body = session.calls[0]
@@ -211,6 +360,8 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(edit_body["mrds"][0]["id"], 2)
         self.assertIs(edit_body["mrds"][0]["active"], True)
         self.assertIs(edit_body["mrds"][0]["enabled"], False)
+        self.assertEqual(edit_body["mrds"][0]["startTime"], "2026-05-08T07:30:00")
+        self.assertEqual(edit_body["mrds"][0]["endTime"], "2026-05-08T08:00:00")
 
         _, confirm_url, _, confirm_body = session.calls[1]
         self.assertTrue(confirm_url.endswith("/service/app/v2/dataVersion"))
@@ -220,6 +371,49 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
             "success": True,
             "returnAllRoutines": True,
         })
+
+    async def test_alarm_wake_time_update_uses_edit_multiple_and_preserves_enabled(self):
+        session = FakeSession()
+        api = Hatch(client_session=session)
+        alarm = {
+            "id": 2,
+            "name": "Wake",
+            "active": True,
+            "enabled": False,
+            "type": "alarm",
+            "macAddress": "AA:BB:CC",
+            "displayOrder": 1,
+            "startTime": "2026-05-08T07:30:00",
+            "endTime": "2026-05-08T08:00:00",
+            "daysOfWeek": 127,
+        }
+
+        updated = await api.update_scheduled_routine_alarm_wake_time(
+            auth_token="token",
+            mac="AA:BB:CC",
+            alarm=alarm,
+            wake_time=time(8, 15),
+        )
+
+        self.assertEqual(updated, [
+            {
+                "id": 2,
+                "name": "Wake",
+                "active": True,
+                "enabled": False,
+                "type": "alarm",
+                "macAddress": "AA:BB:CC",
+                "startTime": "2026-05-08T07:45:00",
+                "endTime": "2026-05-08T08:15:00",
+            }
+        ])
+        _, edit_url, _, edit_body = session.calls[0]
+        self.assertTrue(edit_url.endswith("/service/app/routine/v2/editMultiple"))
+        self.assertEqual(edit_body["type"], "alarm")
+        self.assertIs(edit_body["mrds"][0]["active"], True)
+        self.assertIs(edit_body["mrds"][0]["enabled"], False)
+        self.assertEqual(edit_body["mrds"][0]["startTime"], "2026-05-08T07:45:00")
+        self.assertEqual(edit_body["mrds"][0]["endTime"], "2026-05-08T08:15:00")
 
 
 if __name__ == "__main__":
