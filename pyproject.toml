@@ -37,3 +37,8 @@ keywords = [
 [project.urls]
 "Homepage" = "https://github.com/dahlb/hatch_rest_api"
 "Bug Tracker" = "https://github.com/dahlb/hatch_rest_api/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

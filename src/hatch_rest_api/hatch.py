@@ -272,6 +272,54 @@ class Hatch:
 
         return updated_routines
 
+    async def bulk_edit_swappables(
+        self,
+        auth_token: str,
+        mac: str,
+        routines: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        url = API_URL + "service/app/routine/v2/bulkEditSwappables"
+        response: ClientResponse = (
+            await self._post_request_with_logging_and_errors_raised(
+                url=url,
+                auth_token=auth_token,
+                json_body={"routines": routines},
+            )
+        )
+        response_json = await response.json()
+        payload = response_json["payload"]
+        item = payload.get("item") if isinstance(payload, dict) else None
+        if item:
+            return item
+
+        if (
+            isinstance(payload, dict)
+            and payload.get("confirmDataVersion")
+            and payload.get("dataVersion")
+        ):
+            try:
+                confirmed = await self.confirm_data_version(
+                    auth_token=auth_token,
+                    mac=mac,
+                    data_version=payload["dataVersion"],
+                    success=True,
+                    return_all_routines=True,
+                )
+                if confirmed:
+                    return [
+                        dict(routine)
+                        for routine in confirmed
+                        if routine.get("type") == "routine"
+                    ]
+            except ClientError as error:
+                _LOGGER.warning(
+                    "Could not confirm bulk swappable data version for %s; "
+                    "returning best-effort payload",
+                    mac,
+                    exc_info=error,
+                )
+        return item or []
+
     async def edit_scheduled_routines(
         self,
         auth_token: str,

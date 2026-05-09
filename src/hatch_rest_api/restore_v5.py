@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from .types import SoundContent, SimpleSoundContent
 from .util import (
@@ -29,6 +30,7 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
     current_playing: str = "none"
     current_id: int = 0
     current_step: int = 0
+    paused: bool = False
     color_id: int = NO_COLOR_ID
     sound_id: int = NO_SOUND_ID
     red: int = 0
@@ -39,6 +41,9 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
     clock_nighttime: int = 0
     clock_daytime: int = 0
     flags: int = 0
+    is_snoozed: bool = False
+    snooze_start_time: str = ""
+    snooze_duration_seconds: int = 540
 
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
@@ -50,8 +55,16 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
             self.current_id = safely_get_json_value(state, "current.srId")
         if safely_get_json_value(state, "current.step") is not None:
             self.current_step = safely_get_json_value(state, "current.step")
+        if safely_get_json_value(state, "current.paused") is not None:
+            self.paused = safely_get_json_value(state, "current.paused", bool)
         if safely_get_json_value(state, "connected") is not None:
             self.is_online = safely_get_json_value(state, "connected", bool)
+        if safely_get_json_value(state, "snooze.active") is not None:
+            self.is_snoozed = safely_get_json_value(state, "snooze.active", bool)
+        if safely_get_json_value(state, "snooze.startTime") is not None:
+            self.snooze_start_time = safely_get_json_value(state, "snooze.startTime")
+        if safely_get_json_value(state, "snoozeDuration") is not None:
+            self.snooze_duration_seconds = safely_get_json_value(state, "snoozeDuration", int)
         if safely_get_json_value(state, "current.sound.v") is not None:
             self.volume = convert_to_percentage(
                 safely_get_json_value(state, "current.sound.v", int)
@@ -98,6 +111,10 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
             "current_playing": self.current_playing,
             "current_id": self.current_id,
             "current_step": self.current_step,
+            "paused": self.paused,
+            "is_snoozed": self.is_snoozed,
+            "snooze_start_time": self.snooze_start_time,
+            "snooze_duration_seconds": self.snooze_duration_seconds,
             "is_on": self.is_on,
             "is_playing": self.is_playing,
             "sound_id": self.sound_id,
@@ -173,6 +190,128 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
         _LOGGER.debug(f"Setting favorite: {favorite_name_id}")
         fav_id = int(favorite_name_id.rsplit("-", 1)[1])
         self._update({"current": {"srId": fav_id, "step": 1, "playing": "routine"}})
+
+    def stop_routine(self):
+        self.turn_off()
+
+    @property
+    def _playing_routine(self) -> dict | None:
+        if self.current_playing != "routine":
+            return None
+        return next(
+            (f for f in self.favorites if f.get("id") == self.current_id),
+            None,
+        )
+
+    @property
+    def routine_step_count(self) -> int:
+        routine = self._playing_routine
+        if routine is None:
+            return 0
+        return len(routine.get("steps") or [])
+
+    @property
+    def can_advance_step(self) -> bool:
+        return self.current_step + 1 < self.routine_step_count
+
+    @property
+    def swappable_routines(self) -> list[dict]:
+        return sorted(
+            (
+                f for f in self.favorites
+                if f.get("button0") and f.get("type") == "routine"
+            ),
+            key=lambda r: (r.get("displayOrder") if r.get("displayOrder") is not None else float("inf")),
+        )
+
+    @property
+    def can_swap_routine(self) -> bool:
+        return len(self.swappable_routines) > 1
+
+    def advance_step(self):
+        if self.current_playing != "routine":
+            _LOGGER.debug("advance_step ignored, no routine playing")
+            return
+        if self.paused:
+            _LOGGER.debug("advance_step ignored, routine is paused")
+            return
+        steps_count = self.routine_step_count
+        if steps_count == 0:
+            _LOGGER.debug("advance_step ignored, no step data for current routine")
+            return
+        next_step = self.current_step + 1
+        if next_step >= steps_count:
+            _LOGGER.debug(f"advance_step ignored, already at last step {self.current_step}/{steps_count - 1}")
+            return
+        _LOGGER.debug(f"Advancing routine to step {next_step}")
+        self._update({"current": {"step": next_step}})
+
+    async def swap_routine(self):
+        if self._alarm_api is None or self._alarm_auth_token is None:
+            raise RuntimeError(f"{self.device_name} REST API is not configured")
+        swappables = self.swappable_routines
+        if len(swappables) <= 1:
+            _LOGGER.debug("swap_routine ignored, fewer than 2 swappable routines")
+            return
+        active_index = next(
+            (i for i, r in enumerate(swappables) if r.get("active")),
+            None,
+        )
+        if active_index is None:
+            active_index = 0
+        next_index = (active_index + 1) % len(swappables)
+        if active_index == next_index:
+            return
+        active_routine = swappables[active_index]
+        next_routine = swappables[next_index]
+        _LOGGER.debug(
+            f"Swapping active routine from {active_routine.get('id')} to {next_routine.get('id')}"
+        )
+        routines_to_edit = [
+            {**active_routine, "active": False},
+            {**next_routine, "active": True},
+        ]
+        updated = await self._alarm_api.bulk_edit_swappables(
+            auth_token=self._alarm_auth_token,
+            mac=self.mac,
+            routines=routines_to_edit,
+        )
+        if updated:
+            updated_by_id = {r["id"]: r for r in updated if r.get("id") is not None}
+            self.favorites = [
+                {**f, **updated_by_id[f["id"]]} if f.get("id") in updated_by_id else f
+                for f in self.favorites
+            ]
+        else:
+            local_by_id = {
+                active_routine["id"]: {**active_routine, "active": False},
+                next_routine["id"]: {**next_routine, "active": True},
+            }
+            self.favorites = [
+                {**f, **local_by_id[f["id"]]} if f.get("id") in local_by_id else f
+                for f in self.favorites
+            ]
+        self.publish_updates()
+
+    def pause_routine(self):
+        if self.current_playing != "routine":
+            _LOGGER.debug("pause_routine ignored, no routine playing")
+            return
+        if self.paused:
+            return
+        _LOGGER.debug("Pausing routine")
+        self._update({"current": {"paused": True}})
+
+    def resume_routine(self):
+        if not self.paused:
+            return
+        _LOGGER.debug("Resuming routine")
+        self._update({"current": {"paused": False}})
+
+    def snooze_alarm(self):
+        start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        _LOGGER.debug(f"Snoozing alarm at {start_time}")
+        self._update({"snooze": {"active": True, "startTime": start_time}})
 
     def set_sound(self, sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None, duration: int = 0, until="indefinite"):
         """
