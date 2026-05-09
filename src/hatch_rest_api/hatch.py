@@ -1,10 +1,21 @@
 import asyncio
 import logging
+from collections.abc import Iterable
+from datetime import time
+from typing import Any
 
 from aiohttp import ClientError, ClientResponse, ClientSession, __version__
 from aiohttp.hdrs import USER_AGENT
 
 from .errors import AuthError, RateError
+from .scheduled_routine import (
+    ALARM_ROUTINE_TYPE,
+    ScheduledRoutineAlarm,
+    alarm_routines,
+    alarm_update_payload,
+    alarm_weekdays_update_payload,
+    alarm_wake_time_update_payload,
+)
 from .util_http import request_with_logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -156,6 +167,154 @@ class Hatch:
         routines = response_json["payload"]
         routines.sort(key=lambda x: x.get("displayOrder", float("inf")))
         return routines
+
+    async def scheduled_routines(
+        self,
+        auth_token: str,
+        mac: str,
+        types: list[str] | None = None,
+    ) -> list[ScheduledRoutineAlarm]:
+        url = API_URL + "service/app/routine/v3/fetch"
+        params: dict[str, str | list[str]] = {"macAddress": mac}
+        if types is not None:
+            params["types"] = types
+        response: ClientResponse = (
+            await self._get_request_with_logging_and_errors_raised(
+                url=url, auth_token=auth_token, params=params
+            )
+        )
+        response_json = await response.json()
+        routines = response_json["payload"]
+        routines.sort(key=lambda x: x.get("displayOrder", float("inf")))
+        return routines
+
+    async def update_scheduled_routine_alarm_enabled(
+        self,
+        auth_token: str,
+        mac: str,
+        alarm: ScheduledRoutineAlarm,
+        enabled: bool,
+    ) -> list[ScheduledRoutineAlarm]:
+        return await self._edit_and_confirm_alarm_routines(
+            auth_token=auth_token,
+            mac=mac,
+            mutable_scheduled_routines=[alarm_update_payload(alarm, enabled)],
+        )
+
+    async def update_scheduled_routine_alarm_wake_time(
+        self,
+        auth_token: str,
+        mac: str,
+        alarm: ScheduledRoutineAlarm,
+        wake_time: time,
+    ) -> list[ScheduledRoutineAlarm]:
+        return await self._edit_and_confirm_alarm_routines(
+            auth_token=auth_token,
+            mac=mac,
+            mutable_scheduled_routines=[
+                alarm_wake_time_update_payload(alarm, wake_time)
+            ],
+        )
+
+    async def update_scheduled_routine_alarm_weekdays(
+        self,
+        auth_token: str,
+        mac: str,
+        alarm: ScheduledRoutineAlarm,
+        weekdays: Iterable[str],
+    ) -> list[ScheduledRoutineAlarm]:
+        return await self._edit_and_confirm_alarm_routines(
+            auth_token=auth_token,
+            mac=mac,
+            mutable_scheduled_routines=[
+                alarm_weekdays_update_payload(alarm, weekdays)
+            ],
+        )
+
+    async def _edit_and_confirm_alarm_routines(
+        self,
+        auth_token: str,
+        mac: str,
+        mutable_scheduled_routines: list[dict[str, Any]],
+    ) -> list[ScheduledRoutineAlarm]:
+        payload = await self.edit_scheduled_routines(
+            auth_token=auth_token,
+            mutable_scheduled_routines=mutable_scheduled_routines,
+            routine_type=ALARM_ROUTINE_TYPE,
+        )
+        updated_routines = alarm_routines(payload.get("item") or [])
+
+        if payload.get("confirmDataVersion") and payload.get("dataVersion"):
+            try:
+                confirmed_routines = await self.confirm_data_version(
+                    auth_token=auth_token,
+                    mac=mac,
+                    data_version=payload["dataVersion"],
+                    success=True,
+                    return_all_routines=True,
+                )
+                if confirmed_routines:
+                    updated_routines = alarm_routines(confirmed_routines)
+            except ClientError as error:
+                _LOGGER.warning(
+                    "Could not confirm scheduled routine data version for %s; "
+                    "refetching authoritative routines",
+                    mac,
+                    exc_info=error,
+                )
+                updated_routines = alarm_routines(
+                    await self.scheduled_routines(
+                        auth_token=auth_token,
+                        mac=mac,
+                        types=[ALARM_ROUTINE_TYPE],
+                    )
+                )
+
+        return updated_routines
+
+    async def edit_scheduled_routines(
+        self,
+        auth_token: str,
+        mutable_scheduled_routines: list[dict[str, Any]],
+        routine_type: str,
+    ) -> dict:
+        url = API_URL + "service/app/routine/v2/editMultiple"
+        response: ClientResponse = (
+            await self._post_request_with_logging_and_errors_raised(
+                url=url,
+                auth_token=auth_token,
+                json_body={
+                    "mrds": mutable_scheduled_routines,
+                    "type": routine_type,
+                },
+            )
+        )
+        response_json = await response.json()
+        return response_json["payload"]
+
+    async def confirm_data_version(
+        self,
+        auth_token: str,
+        mac: str,
+        data_version: str,
+        success: bool = True,
+        return_all_routines: bool = True,
+    ) -> list[ScheduledRoutineAlarm]:
+        url = API_URL + "service/app/v2/dataVersion"
+        response: ClientResponse = (
+            await self._post_request_with_logging_and_errors_raised(
+                url=url,
+                auth_token=auth_token,
+                json_body={
+                    "dataVersion": data_version,
+                    "macAddress": mac,
+                    "success": success,
+                    "returnAllRoutines": return_all_routines,
+                },
+            )
+        )
+        response_json = await response.json()
+        return response_json["payload"]
 
     async def content(
         self, auth_token: str, product: str, content: list, max_retries: int = 3

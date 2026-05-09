@@ -15,12 +15,13 @@ from .const import (
     NO_COLOR_ID,
     CUSTOM_COLOR_ID,
 )
+from .scheduled_routine import ScheduledRoutineAlarmMixin
 from .shadow_client_subscriber import ShadowClientSubscriberMixin
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class RestoreV5(ShadowClientSubscriberMixin):
+class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
     firmware_version: str = None
     volume: int = 0
 

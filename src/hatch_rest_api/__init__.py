@@ -6,7 +6,9 @@ from .rest_plus import RestPlus
 from .rest_iot import RestIot
 from .rest_baby import RestBaby
 from .restore_iot import RestoreIot
+from .restore_v4 import RestoreV4
 from .restore_v5 import RestoreV5
+from .scheduled_routine import ScheduledRoutineAlarm
 from .util_bootstrap import get_rest_devices
 from .const import (
     RestMiniAudioTrack,
@@ -22,4 +24,4 @@ from .const import (
     TimeForBedTrack,
     TIME_FOR_BED_TRACKS,
 )
-RestDevice = RestMini | RestPlus | RestIot | RestBaby | RestoreIot | RestoreV5
+RestDevice = RestMini | RestPlus | RestIot | RestBaby | RestoreIot | RestoreV4 | RestoreV5
