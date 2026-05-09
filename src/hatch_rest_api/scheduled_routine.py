@@ -447,18 +447,21 @@ class ScheduledRoutineAlarmMixin:
         if alarm is None:
             raise ValueError(f"Alarm {alarm_id} not found for {self.device_name}")
 
+        # Materialize once so the API call and the fallback payload see the same values
+        # even if the caller passed a single-pass generator.
+        weekdays_list = list(weekdays)
         api, auth_token = self._configured_alarm_api()
         updated_alarms = await api.update_scheduled_routine_alarm_weekdays(
             auth_token=auth_token,
             mac=self.mac,
             alarm=alarm,
-            weekdays=weekdays,
+            weekdays=weekdays_list,
         )
         if updated_alarms:
             self._replace_alarms(updated_alarms)
         else:
             self._replace_alarms(
-                [{**alarm, **alarm_weekdays_update_payload(alarm, weekdays)}]
+                [{**alarm, **alarm_weekdays_update_payload(alarm, weekdays_list)}]
             )
         self.publish_updates()
 

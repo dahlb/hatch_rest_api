@@ -119,6 +119,16 @@ class EmptyAlarmUpdateApi:
         self.calls.append((auth_token, mac, alarm["id"], enabled))
         return []
 
+    async def update_scheduled_routine_alarm_weekdays(
+        self,
+        auth_token: str,
+        mac: str,
+        alarm: dict,
+        weekdays,
+    ):
+        self.calls.append((auth_token, mac, alarm["id"], list(weekdays)))
+        return []
+
 
 class RefreshAlarmApi:
     def __init__(self, alarms: list[dict]):
@@ -665,6 +675,41 @@ class ScheduledRoutineAlarmMixinTest(unittest.IsolatedAsyncioTestCase):
         updated_end = datetime.fromisoformat(updated_alarm["endTime"])
         self.assertGreater(updated_end, before_update)
         self.assertEqual((updated_end - updated_start).total_seconds(), 1800)
+
+
+    async def test_set_alarm_weekdays_accepts_generator_input(self):
+        api = EmptyAlarmUpdateApi()
+        device = FakeAlarmDevice()
+        device.configure_alarm_api(
+            api=api,
+            auth_token="token",
+            alarms=[
+                {
+                    "id": 2,
+                    "name": "Wake",
+                    "active": True,
+                    "enabled": True,
+                    "type": "alarm",
+                    "macAddress": "AA:BB:CC",
+                    "startTime": "2026-05-08T07:30:00",
+                    "endTime": "2026-05-08T08:00:00",
+                    "daysOfWeek": 0,
+                }
+            ],
+        )
+
+        await device.set_alarm_weekdays(
+            2,
+            (weekday for weekday in ["monday", "wednesday", "friday"]),
+        )
+
+        self.assertEqual(
+            api.calls,
+            [("token", "AA:BB:CC", 2, ["monday", "wednesday", "friday"])],
+        )
+        self.assertEqual(device.publish_count, 1)
+        updated_alarm = device.alarms[0]
+        self.assertEqual(updated_alarm["daysOfWeek"], 42)
 
 
 if __name__ == "__main__":
