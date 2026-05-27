@@ -16,6 +16,10 @@ from .callbacks import CallbacksMixin
 
 _LOGGER = logging.getLogger(__name__)
 
+# Seconds to wait for MQTT operations before giving up. Prevents thread pool
+# workers from blocking indefinitely when the connection is down.
+MQTT_TIMEOUT = 10
+
 
 class ShadowClientSubscriberMixin(CallbacksMixin):
     document_version: int = -1
@@ -56,7 +60,7 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
             qos=mqtt.QoS.AT_LEAST_ONCE,
             callback=update_shadow_accepted,
         )
-        update_accepted_subscribed_future.result()
+        update_accepted_subscribed_future.result(timeout=MQTT_TIMEOUT)
         _LOGGER.debug(
             f"unsubscribe_topic_to_update_shadow_accepted: {unsubscribe_topic_to_update_shadow_accepted}"
         )
@@ -72,7 +76,7 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
             qos=mqtt.QoS.AT_LEAST_ONCE,
             callback=on_get_shadow_accepted,
         )
-        get_accepted_subscribed_future.result()
+        get_accepted_subscribed_future.result(timeout=MQTT_TIMEOUT)
         _LOGGER.debug(
             f"unsubscribe_topic_to_update_shadow_accepted: {unsubscribe_topic_to_get_shadow_accepted}"
         )
@@ -111,7 +115,7 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         )
         self.shadow_client.publish_update_shadow(
             request, mqtt.QoS.AT_LEAST_ONCE
-        ).result()
+        ).result(timeout=MQTT_TIMEOUT)
 
     def refresh(self):
         _LOGGER.debug("Requesting current shadow state...")
@@ -120,5 +124,5 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
                 thing_name=self.thing_name, client_token=None
             ),
             qos=mqtt.QoS.AT_LEAST_ONCE,
-        ).result()
+        ).result(timeout=MQTT_TIMEOUT)
         _LOGGER.debug(f"result: {result}")
