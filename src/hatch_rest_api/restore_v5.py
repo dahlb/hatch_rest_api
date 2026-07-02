@@ -36,9 +36,14 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
     blue: int = 0
     white: int = 0
     brightness: int = 0
-    clock_nighttime: int = 0
-    clock_daytime: int = 0
+    clock_nighttime: int | None = None
+    clock_daytime: int | None = None
     flags: int = 0
+    clock_turn_off_mode: str = None
+    clock_turn_off_at: str = None
+    clock_turn_on_at: str = None
+    clock_turn_dim_at: str = None
+    clock_turn_bright_at: str = None
 
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
@@ -84,6 +89,16 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
             self.clock_nighttime, self.clock_daytime = unpack_dual_percentages(safely_get_json_value(state, "clock.i", int))
         if safely_get_json_value(state, "clock.flags") is not None:
             self.flags = safely_get_json_value(state, "clock.flags", int)
+        if safely_get_json_value(state, "clock.turnOffMode") is not None:
+            self.clock_turn_off_mode = safely_get_json_value(state, "clock.turnOffMode")
+        if safely_get_json_value(state, "clock.turnOffAt") is not None:
+            self.clock_turn_off_at = safely_get_json_value(state, "clock.turnOffAt")
+        if safely_get_json_value(state, "clock.turnOnAt") is not None:
+            self.clock_turn_on_at = safely_get_json_value(state, "clock.turnOnAt")
+        if safely_get_json_value(state, "clock.turnDimAt") is not None:
+            self.clock_turn_dim_at = safely_get_json_value(state, "clock.turnDimAt")
+        if safely_get_json_value(state, "clock.turnBrightAt") is not None:
+            self.clock_turn_bright_at = safely_get_json_value(state, "clock.turnBrightAt")
 
         _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
@@ -110,6 +125,11 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
             "clock_nighttime": self.clock_nighttime,
             "clock_daytime": self.clock_daytime,
             "flags": self.flags,
+            "clock_turn_off_mode": self.clock_turn_off_mode,
+            "clock_turn_off_at": self.clock_turn_off_at,
+            "clock_turn_on_at": self.clock_turn_on_at,
+            "clock_turn_dim_at": self.clock_turn_dim_at,
+            "clock_turn_bright_at": self.clock_turn_bright_at,
             "is_clock_on": self.is_clock_on,
             "is_clock_24h": self.is_clock_24h,
         }
@@ -139,7 +159,7 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
 
     @property
     def clock(self) -> int:
-        return self.clock_daytime
+        return self.clock_daytime or 0
 
     def set_volume(self, percentage: int):
         _LOGGER.debug(f"Setting volume: {percentage}")
@@ -156,9 +176,9 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
 
     def set_clock(self, daytime_brightness: int|None = None, nighttime_brightness: int|None = None):
         if daytime_brightness is None:
-            daytime_brightness = self.clock_daytime
+            daytime_brightness = self.clock_daytime or 0
         if nighttime_brightness is None:
-            nighttime_brightness = self.clock_nighttime
+            nighttime_brightness = self.clock_nighttime or 0
         _LOGGER.debug(f"Setting clock on: daytime={daytime_brightness} nighttime={nighttime_brightness}")
         self._update(
             {"clock": {"flags": self.flags | RIOT_FLAGS_CLOCK_ON, "i": pack_dual_percentages(nighttime_brightness, daytime_brightness)}}
@@ -166,7 +186,14 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
 
     def turn_clock_off(self):
         _LOGGER.debug("Turn off clock")
-        self._update({"clock": {"flags": self.flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}})
+        clock = {"flags": self.flags & ~RIOT_FLAGS_CLOCK_ON}
+        # Only re-send the packed brightness when both channels are known, so an
+        # off call before the device has reported clock.i doesn't zero it out.
+        if self.clock_nighttime is not None and self.clock_daytime is not None:
+            clock["i"] = pack_dual_percentages(
+                self.clock_nighttime, self.clock_daytime
+            )
+        self._update({"clock": clock})
 
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
     def set_favorite(self, favorite_name_id: str):
