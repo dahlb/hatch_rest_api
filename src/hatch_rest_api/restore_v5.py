@@ -39,6 +39,11 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
     clock_nighttime: int = 0
     clock_daytime: int = 0
     flags: int = 0
+    clock_turn_off_mode: str = None
+    clock_turn_off_at: str = None
+    clock_turn_on_at: str = None
+    clock_turn_dim_at: str = None
+    clock_turn_bright_at: str = None
 
     def _update_local_state(self, state):
         _LOGGER.debug(f"update local state: {self.device_name}, {state}")
@@ -84,6 +89,16 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
             self.clock_nighttime, self.clock_daytime = unpack_dual_percentages(safely_get_json_value(state, "clock.i", int))
         if safely_get_json_value(state, "clock.flags") is not None:
             self.flags = safely_get_json_value(state, "clock.flags", int)
+        if safely_get_json_value(state, "clock.turnOffMode") is not None:
+            self.clock_turn_off_mode = safely_get_json_value(state, "clock.turnOffMode")
+        if safely_get_json_value(state, "clock.turnOffAt") is not None:
+            self.clock_turn_off_at = safely_get_json_value(state, "clock.turnOffAt")
+        if safely_get_json_value(state, "clock.turnOnAt") is not None:
+            self.clock_turn_on_at = safely_get_json_value(state, "clock.turnOnAt")
+        if safely_get_json_value(state, "clock.turnDimAt") is not None:
+            self.clock_turn_dim_at = safely_get_json_value(state, "clock.turnDimAt")
+        if safely_get_json_value(state, "clock.turnBrightAt") is not None:
+            self.clock_turn_bright_at = safely_get_json_value(state, "clock.turnBrightAt")
 
         _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
@@ -110,6 +125,11 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
             "clock_nighttime": self.clock_nighttime,
             "clock_daytime": self.clock_daytime,
             "flags": self.flags,
+            "clock_turn_off_mode": self.clock_turn_off_mode,
+            "clock_turn_off_at": self.clock_turn_off_at,
+            "clock_turn_on_at": self.clock_turn_on_at,
+            "clock_turn_dim_at": self.clock_turn_dim_at,
+            "clock_turn_bright_at": self.clock_turn_bright_at,
             "is_clock_on": self.is_clock_on,
             "is_clock_24h": self.is_clock_24h,
         }
@@ -166,7 +186,16 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
 
     def turn_clock_off(self):
         _LOGGER.debug("Turn off clock")
-        self._update({"clock": {"flags": self.flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}})
+        self._update(
+            {
+                "clock": {
+                    "flags": self.flags & ~RIOT_FLAGS_CLOCK_ON,
+                    "i": pack_dual_percentages(
+                        self.clock_nighttime, self.clock_daytime
+                    ),
+                }
+            }
+        )
 
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
     def set_favorite(self, favorite_name_id: str):
