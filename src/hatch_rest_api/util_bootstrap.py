@@ -32,6 +32,11 @@ from .types import SimpleSoundContent
 
 _LOGGER = logging.getLogger(__name__)
 
+# Seconds to wait for the MQTT connection to establish before giving up.
+# Prevents thread pool workers from blocking indefinitely when the Hatch
+# cloud is unreachable in ways that don't fail fast (e.g. hung TCP).
+MQTT_CONNECT_TIMEOUT = 30
+
 io.init_logging(io.LogLevel.NoLogs, "stderr")
 
 
@@ -93,7 +98,9 @@ async def get_rest_devices(
     )
     try:
         connect_future = await loop.run_in_executor(None, mqtt_connection.connect)
-        await loop.run_in_executor(None, connect_future.result)
+        await loop.run_in_executor(
+            None, partial(connect_future.result, MQTT_CONNECT_TIMEOUT)
+        )
         _LOGGER.debug("mqtt connection connected")
     except Exception as e:
         _LOGGER.error(f"MQTT connection failed with exception {e}")
