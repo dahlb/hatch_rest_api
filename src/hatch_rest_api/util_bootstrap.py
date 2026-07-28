@@ -94,6 +94,17 @@ async def get_rest_devices(
             client_id=f"hatch_rest_api/{safe_email}/{str(uuid4())}",
             on_connection_interrupted=on_connection_interrupted,
             on_connection_resumed=on_connection_resumed,
+            # Opt out of the AWS IoT SDK metrics that awsiot otherwise appends
+            # to the CONNECT packet username. They report AWS SDK/platform
+            # details to AWS and are of no use to us, but building them makes
+            # awscrt introspect private ClientTlsContext internals
+            # (tls_ctx._certificate_source). On installs where awscrt's modules
+            # are not all from the same version, that attribute is missing and
+            # the connection blows up before it is ever attempted:
+            #     AttributeError: 'ClientTlsContext' object
+            #     has no attribute '_certificate_source'
+            # Disabling metrics skips that code path entirely.
+            enable_metrics_collection=False,
         ),
     )
     try:
