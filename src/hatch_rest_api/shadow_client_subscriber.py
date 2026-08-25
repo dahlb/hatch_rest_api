@@ -45,6 +45,7 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         self.sounds = sounds
         self.sounds_by_id = {s['id']: s for s in sounds if s.get('id')}
         self.sounds_by_name = {s['title']: s for s in sounds if s.get('title')}
+        self._subscribed_topics: list[str] = []
         _LOGGER.debug(f"creating {self.__class__.__name__}: {device_name}")
 
         def update_shadow_accepted(response: UpdateShadowResponse):
@@ -61,6 +62,7 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
             callback=update_shadow_accepted,
         )
         update_accepted_subscribed_future.result(timeout=MQTT_TIMEOUT)
+        self._subscribed_topics.append(unsubscribe_topic_to_update_shadow_accepted)
         _LOGGER.debug(
             f"unsubscribe_topic_to_update_shadow_accepted: {unsubscribe_topic_to_update_shadow_accepted}"
         )
@@ -77,10 +79,41 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
             callback=on_get_shadow_accepted,
         )
         get_accepted_subscribed_future.result(timeout=MQTT_TIMEOUT)
+        self._subscribed_topics.append(unsubscribe_topic_to_get_shadow_accepted)
         _LOGGER.debug(
             f"unsubscribe_topic_to_update_shadow_accepted: {unsubscribe_topic_to_get_shadow_accepted}"
         )
         self.refresh()
+
+    def unsubscribe(self) -> None:
+        """Drop the shadow subscriptions this device registered.
+
+        awscrt holds a reference from native code to every subscription
+        callback, and both callbacks above close over ``self``. Those native
+        references are invisible to Python's garbage collector, so until the
+        subscriptions are released nothing can reclaim the device, its shadow
+        client, or the TLS context and MQTT buffers underneath -- not even
+        after ``disconnect()`` has closed the socket and every Python caller
+        has dropped its reference.
+
+        Callers that rebuild the connection therefore have to call this first.
+        ha_hatch rebuilds hourly, when the AWS credentials expire, so skipping
+        it stranded one full connection graph per hour for the life of the
+        process.
+
+        Blocks, so call it off the event loop. Safe to call more than once, and
+        safe to call on a connection that has already dropped: the topics are
+        discarded either way, because tearing the connection down releases the
+        same native references that a clean UNSUBACK would.
+        """
+        while self._subscribed_topics:
+            topic = self._subscribed_topics.pop()
+            try:
+                self.shadow_client.unsubscribe(topic).result(timeout=MQTT_TIMEOUT)
+            except Exception as error:
+                _LOGGER.warning(
+                    f"unsubscribing {self.device_name} from {topic} failed: {error}"
+                )
 
     def _on_update_shadow_accepted(self, response: UpdateShadowResponse):
         _LOGGER.debug(f"update {self.device_name}, RESPONSE: {response}")
