@@ -95,7 +95,9 @@ class UnsubscribeTest(unittest.TestCase):
         # Credentials expiring can drop the connection before we get to
         # unsubscribe. The UNSUBACK never arrives, but the topics still have to
         # be cleared -- the teardown releases the same native references.
-        client = RecordingShadowClient(unsubscribe_error=RuntimeError("connection closed"))
+        client = RecordingShadowClient(
+            unsubscribe_error=RuntimeError("connection closed")
+        )
         device = _device(client)
 
         device.unsubscribe()
