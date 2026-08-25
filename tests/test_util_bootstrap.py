@@ -61,6 +61,71 @@ class FakeShadowClient:
         return lambda *args, **kwargs: MagicMock()
 
 
+def _run_bootstrap(io_mock=None):
+    """Run get_rest_devices with every network dependency faked.
+
+    Returns the patched connection builder and the patched awscrt ``io`` module
+    so tests can assert on how each was used. Pass an ``io_mock`` to share one
+    across several runs, which is how a reconnect is simulated.
+    """
+    builder = MagicMock(return_value=MagicMock())
+    if io_mock is None:
+        io_mock = MagicMock()
+
+    with (
+        patch.object(util_bootstrap, "Hatch", FakeHatch),
+        patch.object(util_bootstrap, "Contentful", MagicMock()),
+        patch.object(util_bootstrap, "AwsHttp", FakeAwsHttp),
+        patch.object(util_bootstrap, "AwsCredentialsProvider", MagicMock()),
+        patch.object(util_bootstrap, "io", io_mock),
+        patch.object(
+            util_bootstrap, "IotShadowClient", lambda *a, **kw: FakeShadowClient()
+        ),
+        patch.object(util_bootstrap, "websockets_with_default_aws_signing", builder),
+    ):
+        asyncio.run(
+            util_bootstrap.get_rest_devices(
+                email="user@example.com", password="hunter2"
+            )
+        )
+
+    return builder, io_mock
+
+
+class GetRestDevicesClientBootstrapTest(unittest.TestCase):
+    """Regression guard for the awscrt event loop thread leak.
+
+    ``get_rest_devices`` used to build an EventLoopGroup, DefaultHostResolver
+    and ClientBootstrap of its own on every call. awscrt starts a native thread
+    per EventLoopGroup and only stops it once the native resource is destroyed,
+    which never happened while the connection graph stayed reachable. Since
+    callers reconnect every time the AWS credentials expire -- hourly -- each
+    refresh stranded another thread, pipe pair and set of CRT buffers.
+    """
+
+    def test_uses_shared_static_bootstrap(self):
+        _, io_mock = _run_bootstrap()
+
+        io_mock.ClientBootstrap.get_or_create_static_default.assert_called_once()
+
+    def test_does_not_build_per_connection_event_loop_group(self):
+        _, io_mock = _run_bootstrap()
+
+        io_mock.EventLoopGroup.assert_not_called()
+        io_mock.DefaultHostResolver.assert_not_called()
+
+    def test_reconnects_reuse_the_same_bootstrap(self):
+        io_mock = MagicMock()
+        builder_one, _ = _run_bootstrap(io_mock)
+        builder_two, _ = _run_bootstrap(io_mock)
+
+        self.assertIs(
+            builder_one.call_args.kwargs["client_bootstrap"],
+            builder_two.call_args.kwargs["client_bootstrap"],
+        )
+        io_mock.EventLoopGroup.assert_not_called()
+
+
 class GetRestDevicesMetricsTest(unittest.TestCase):
     """Regression guard for dahlb/ha_hatch#323.
 
@@ -76,38 +141,14 @@ class GetRestDevicesMetricsTest(unittest.TestCase):
     keep passing enable_metrics_collection=False so that path is never entered.
     """
 
-    def _run_bootstrap(self):
-        builder = MagicMock(return_value=MagicMock())
-
-        with (
-            patch.object(util_bootstrap, "Hatch", FakeHatch),
-            patch.object(util_bootstrap, "Contentful", MagicMock()),
-            patch.object(util_bootstrap, "AwsHttp", FakeAwsHttp),
-            patch.object(util_bootstrap, "AwsCredentialsProvider", MagicMock()),
-            patch.object(util_bootstrap, "io", MagicMock()),
-            patch.object(
-                util_bootstrap, "IotShadowClient", lambda *a, **kw: FakeShadowClient()
-            ),
-            patch.object(
-                util_bootstrap, "websockets_with_default_aws_signing", builder
-            ),
-        ):
-            asyncio.run(
-                util_bootstrap.get_rest_devices(
-                    email="user@example.com", password="hunter2"
-                )
-            )
-
-        return builder
-
     def test_metrics_collection_disabled(self):
-        builder = self._run_bootstrap()
+        builder, _ = _run_bootstrap()
 
         builder.assert_called_once()
         self.assertIs(builder.call_args.kwargs["enable_metrics_collection"], False)
 
     def test_devices_still_created(self):
-        builder = self._run_bootstrap()
+        builder, _ = _run_bootstrap()
 
         # Sanity check that disabling metrics did not disturb the rest of the
         # bootstrap: the connection is still built and devices still returned.

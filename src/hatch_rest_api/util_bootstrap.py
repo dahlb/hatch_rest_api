@@ -40,6 +40,24 @@ MQTT_CONNECT_TIMEOUT = 30
 io.init_logging(io.LogLevel.NoLogs, "stderr")
 
 
+def _get_client_bootstrap():
+    """Return the process-wide ClientBootstrap used for every MQTT connection.
+
+    awscrt starts a native event loop thread per EventLoopGroup and only stops
+    it when the native resource is destroyed. Nothing here ever destroys one:
+    the shadow subscriptions set up per device hold callbacks that reference
+    the device, which references the connection, which owns the bootstrap, so
+    the whole graph stays reachable even after ``disconnect()``. Building a
+    group per call therefore stranded a thread, its pipe pair and its CRT
+    buffers every time.
+
+    Callers rebuild the connection whenever the AWS credentials expire, which
+    Hatch issues hourly, so that cost accumulated for as long as the process
+    ran. Sharing awscrt's static default keeps it flat at one thread.
+    """
+    return io.ClientBootstrap.get_or_create_static_default()
+
+
 async def get_rest_devices(
     email: str,
     password: str,
@@ -77,9 +95,7 @@ async def get_rest_devices(
         aws_credentials["Credentials"]["SecretKey"],
         session_token=aws_credentials["Credentials"]["SessionToken"],
     )
-    event_loop_group = io.EventLoopGroup(1)
-    host_resolver = io.DefaultHostResolver(event_loop_group)
-    client_bootstrap = io.ClientBootstrap(event_loop_group, host_resolver)
+    client_bootstrap = _get_client_bootstrap()
     endpoint = aws_token["endpoint"].lstrip("https://")
     safe_email = sub("[^a-z]", "", email, flags=IGNORECASE).lower()
     mqtt_connection = await loop.run_in_executor(
