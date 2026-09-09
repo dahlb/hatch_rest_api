@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from functools import partial
-from re import IGNORECASE, sub
+from re import IGNORECASE, search, sub
 from uuid import uuid4
 
 from aiohttp import ClientError, ClientSession
@@ -37,6 +37,13 @@ _LOGGER = logging.getLogger(__name__)
 # cloud is unreachable in ways that don't fail fast (e.g. hung TCP).
 MQTT_CONNECT_TIMEOUT = 30
 
+# awscrt raises this when its python wrapper and its native extension
+# disagree about the argument list of the MQTT connect binding, e.g.
+#     TypeError: function takes exactly 17 arguments (18 given)
+_NATIVE_ARITY_ERROR = r"takes exactly (\d+) arguments? \((\d+) given\)"
+_NATIVE_CONNECT = "mqtt_client_connection_connect"
+_RECONCILED_FLAG = "_hatch_rest_api_reconciled"
+
 io.init_logging(io.LogLevel.NoLogs, "stderr")
 
 
@@ -56,6 +63,67 @@ def _get_client_bootstrap():
     ran. Sharing awscrt's static default keeps it flat at one thread.
     """
     return io.ClientBootstrap.get_or_create_static_default()
+
+
+async def _connect_mqtt(loop, mqtt_connection):
+    connect_future = await loop.run_in_executor(None, mqtt_connection.connect)
+    await loop.run_in_executor(
+        None, partial(connect_future.result, MQTT_CONNECT_TIMEOUT)
+    )
+
+
+def _reconcile_awscrt_arity(error: TypeError) -> bool:
+    """Bridge an argument count gap between awscrt's wrapper and extension.
+
+    awsiotsdk pins an exact awscrt, so installing it can replace awscrt on disk
+    while the interpreter is already running. ``awscrt/__init__.py`` -- and the
+    ``_awscrt`` extension it has already loaded -- then stay resident from the
+    old version, while ``awscrt/mqtt.py`` is imported afterwards from the new
+    one. The newer wrapper passes the trailing IoT metrics argument, added in
+    awscrt 0.32.1, to a native binding that predates it::
+
+        TypeError: function takes exactly 17 arguments (18 given)
+
+    Restarting the process realigns the two halves, but until then every
+    connection attempt fails the same way, so wrap the native binding to
+    trim or pad the trailing argument to whatever the resident extension takes.
+
+    Only a one argument gap is bridged. That is the drift being reconciled, and
+    a wider one would mean handing the binding values meant for other
+    parameters. Returns whether anything was patched, so the caller only
+    retries when there is something new to try.
+    """
+    match = search(_NATIVE_ARITY_ERROR, str(error))
+    if match is None:
+        return False
+    expected, given = int(match.group(1)), int(match.group(2))
+    if abs(expected - given) != 1:
+        return False
+    # Imported here so the dependency on awscrt's private extension module is
+    # confined to this recovery path.
+    try:
+        import _awscrt
+    except ImportError:
+        return False
+    binding = getattr(_awscrt, _NATIVE_CONNECT, None)
+    if binding is None or getattr(binding, _RECONCILED_FLAG, False):
+        return False
+
+    def reconciled_connect(*args):
+        if len(args) > expected:
+            args = args[:expected]
+        elif len(args) < expected:
+            args = args + (None,) * (expected - len(args))
+        return binding(*args)
+
+    setattr(reconciled_connect, _RECONCILED_FLAG, True)
+    setattr(_awscrt, _NATIVE_CONNECT, reconciled_connect)
+    _LOGGER.warning(
+        f"awscrt passed {given} arguments to a native connect binding that "
+        f"takes {expected}, so its modules are not all from the same version. "
+        "Reconciling the call and retrying; restart to load a consistent awscrt."
+    )
+    return True
 
 
 async def get_rest_devices(
@@ -124,10 +192,12 @@ async def get_rest_devices(
         ),
     )
     try:
-        connect_future = await loop.run_in_executor(None, mqtt_connection.connect)
-        await loop.run_in_executor(
-            None, partial(connect_future.result, MQTT_CONNECT_TIMEOUT)
-        )
+        try:
+            await _connect_mqtt(loop, mqtt_connection)
+        except TypeError as e:
+            if not _reconcile_awscrt_arity(e):
+                raise
+            await _connect_mqtt(loop, mqtt_connection)
         _LOGGER.debug("mqtt connection connected")
     except Exception as e:
         _LOGGER.error(f"MQTT connection failed with exception {e}")
