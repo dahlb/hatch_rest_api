@@ -47,7 +47,8 @@ def request_with_logging_and_errors(func):
 
         if response_json.get("status") == "success":
             return response
-        if response_json.get("errorCode") == 1001:
+        # The API returns errorCode as a string (e.g. "1001"), so compare loosely.
+        if str(response_json.get("errorCode")) == "1001":
             _LOGGER.debug("error: session invalid")
             raise AuthError
         raise ClientError(f"api error:{response_json.get('message')}")
