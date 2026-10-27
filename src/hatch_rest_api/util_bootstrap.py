@@ -25,6 +25,7 @@ from .restore_v4 import RestoreV4
 from .restore_v5 import RestoreV5
 from .scheduled_routine import (
     ALARM_ROUTINE_TYPE,
+    CUE_ROUTINE_TYPE,
     SCHEDULED_ROUTINE_ALARM_PRODUCTS,
     ScheduledRoutineAlarmMixin,
 )
@@ -145,8 +146,11 @@ async def get_rest_devices(
     aws_token = await api.token(auth_token=token)
     favorites_map = await _get_favorites_for_all_v2_devices(api, token, iot_devices)
     routines_map = await _get_routines_for_all_v2_devices(api, token, iot_devices)
-    alarms_map = await _get_alarms_for_all_scheduled_routine_devices(
-        api, token, iot_devices
+    alarms_map = await _get_scheduled_routines_for_all_devices(
+        api, token, iot_devices, ALARM_ROUTINE_TYPE
+    )
+    cues_map = await _get_scheduled_routines_for_all_devices(
+        api, token, iot_devices, CUE_ROUTINE_TYPE
     )
     sounds_map = await _get_sound_content_for_all_v2_devices(
         api, token, contentful, iot_devices
@@ -207,7 +211,12 @@ async def get_rest_devices(
 
     def _with_alarm_api(rest_device, alarms):
         if isinstance(rest_device, ScheduledRoutineAlarmMixin):
-            rest_device.configure_alarm_api(api=api, auth_token=token, alarms=alarms)
+            rest_device.configure_alarm_api(
+                api=api,
+                auth_token=token,
+                alarms=alarms,
+                cues=cues_map.get(rest_device.mac, []),
+            )
         return rest_device
 
     def create_rest_devices(iot_device):
@@ -327,27 +336,29 @@ async def _get_routines_for_all_v2_devices(api, token, iot_devices):
     return mac_to_routines
 
 
-async def _get_alarms_for_all_scheduled_routine_devices(api, token, iot_devices):
-    mac_to_alarms = {}
+async def _get_scheduled_routines_for_all_devices(
+    api, token, iot_devices, routine_type
+):
+    mac_to_routines = {}
     for device in iot_devices:
         if device["product"] in SCHEDULED_ROUTINE_ALARM_PRODUCTS:
             mac = device["macAddress"]
             try:
-                alarms = await api.scheduled_routines(
+                routines = await api.scheduled_routines(
                     auth_token=token,
                     mac=mac,
-                    types=[ALARM_ROUTINE_TYPE],
+                    types=[routine_type],
                 )
             except RateError:
                 raise
             except ClientError as e:
                 _LOGGER.warning(
-                    f"Could not fetch alarm routines for {mac}: {str(e)}"
+                    f"Could not fetch {routine_type} routines for {mac}: {str(e)}"
                 )
-                alarms = None
-            _LOGGER.debug(f"Alarms for {mac}: {alarms}")
-            mac_to_alarms[mac] = alarms
-    return mac_to_alarms
+                routines = None
+            _LOGGER.debug(f"Scheduled {routine_type} routines for {mac}: {routines}")
+            mac_to_routines[mac] = routines
+    return mac_to_routines
 
 
 async def _get_sound_content_for_all_v2_devices(

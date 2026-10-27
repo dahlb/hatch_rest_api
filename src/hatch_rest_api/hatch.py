@@ -10,11 +10,12 @@ from aiohttp.hdrs import USER_AGENT
 from .errors import AuthError, RateError
 from .scheduled_routine import (
     ALARM_ROUTINE_TYPE,
+    CUE_ROUTINE_TYPE,
     ScheduledRoutineAlarm,
-    alarm_routines,
     alarm_update_payload,
     alarm_weekdays_update_payload,
     alarm_wake_time_update_payload,
+    scheduled_routines_of_type,
 )
 from .util_http import request_with_logging
 
@@ -196,10 +197,25 @@ class Hatch:
         alarm: ScheduledRoutineAlarm,
         enabled: bool,
     ) -> list[ScheduledRoutineAlarm]:
-        return await self._edit_and_confirm_alarm_routines(
+        return await self._edit_and_confirm_scheduled_routines(
             auth_token=auth_token,
             mac=mac,
             mutable_scheduled_routines=[alarm_update_payload(alarm, enabled)],
+            routine_type=ALARM_ROUTINE_TYPE,
+        )
+
+    async def update_scheduled_routine_cue_enabled(
+        self,
+        auth_token: str,
+        mac: str,
+        cue: ScheduledRoutineAlarm,
+        enabled: bool,
+    ) -> list[ScheduledRoutineAlarm]:
+        return await self._edit_and_confirm_scheduled_routines(
+            auth_token=auth_token,
+            mac=mac,
+            mutable_scheduled_routines=[alarm_update_payload(cue, enabled)],
+            routine_type=CUE_ROUTINE_TYPE,
         )
 
     async def update_scheduled_routine_alarm_wake_time(
@@ -209,12 +225,13 @@ class Hatch:
         alarm: ScheduledRoutineAlarm,
         wake_time: time,
     ) -> list[ScheduledRoutineAlarm]:
-        return await self._edit_and_confirm_alarm_routines(
+        return await self._edit_and_confirm_scheduled_routines(
             auth_token=auth_token,
             mac=mac,
             mutable_scheduled_routines=[
                 alarm_wake_time_update_payload(alarm, wake_time)
             ],
+            routine_type=ALARM_ROUTINE_TYPE,
         )
 
     async def update_scheduled_routine_alarm_weekdays(
@@ -224,26 +241,31 @@ class Hatch:
         alarm: ScheduledRoutineAlarm,
         weekdays: Iterable[str],
     ) -> list[ScheduledRoutineAlarm]:
-        return await self._edit_and_confirm_alarm_routines(
+        return await self._edit_and_confirm_scheduled_routines(
             auth_token=auth_token,
             mac=mac,
             mutable_scheduled_routines=[
                 alarm_weekdays_update_payload(alarm, weekdays)
             ],
+            routine_type=ALARM_ROUTINE_TYPE,
         )
 
-    async def _edit_and_confirm_alarm_routines(
+    async def _edit_and_confirm_scheduled_routines(
         self,
         auth_token: str,
         mac: str,
         mutable_scheduled_routines: list[dict[str, Any]],
+        routine_type: str,
     ) -> list[ScheduledRoutineAlarm]:
         payload = await self.edit_scheduled_routines(
             auth_token=auth_token,
             mutable_scheduled_routines=mutable_scheduled_routines,
-            routine_type=ALARM_ROUTINE_TYPE,
+            routine_type=routine_type,
         )
-        updated_routines = alarm_routines(payload.get("item") or [])
+        updated_routines = scheduled_routines_of_type(
+            payload.get("item") or [],
+            routine_type,
+        )
 
         if payload.get("confirmDataVersion") and payload.get("dataVersion"):
             try:
@@ -255,7 +277,10 @@ class Hatch:
                     return_all_routines=True,
                 )
                 if confirmed_routines:
-                    updated_routines = alarm_routines(confirmed_routines)
+                    updated_routines = scheduled_routines_of_type(
+                        confirmed_routines,
+                        routine_type,
+                    )
             except ClientError as error:
                 _LOGGER.warning(
                     "Could not confirm scheduled routine data version for %s; "
@@ -263,12 +288,13 @@ class Hatch:
                     mac,
                     exc_info=error,
                 )
-                updated_routines = alarm_routines(
+                updated_routines = scheduled_routines_of_type(
                     await self.scheduled_routines(
                         auth_token=auth_token,
                         mac=mac,
-                        types=[ALARM_ROUTINE_TYPE],
-                    )
+                        types=[routine_type],
+                    ),
+                    routine_type,
                 )
 
         return updated_routines

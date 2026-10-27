@@ -6,6 +6,8 @@ if TYPE_CHECKING:
     from .hatch import Hatch
 
 ALARM_ROUTINE_TYPE = "alarm"
+# The bedtime cue shares the alarm schedule fields and edit flow.
+CUE_ROUTINE_TYPE = "cue"
 # Android models scheduled-routine alarms this way for Restore, Restore 2, and Restore 3.
 SCHEDULED_ROUTINE_ALARM_PRODUCTS: frozenset[str] = frozenset(
     {"restoreIot", "restoreV4", "restoreV5"}
@@ -179,11 +181,14 @@ def days_of_week_label(days_of_week: int | None) -> str:
     )
 
 
-def alarm_routines(routines: list[ScheduledRoutineAlarm]) -> list[ScheduledRoutineAlarm]:
+def scheduled_routines_of_type(
+    routines: list[ScheduledRoutineAlarm],
+    routine_type: str,
+) -> list[ScheduledRoutineAlarm]:
     return [
         routine
         for routine in routines
-        if routine.get("type") == ALARM_ROUTINE_TYPE
+        if routine.get("type") == routine_type
     ]
 
 
@@ -350,8 +355,10 @@ def _format_like_original(original: str | None, value: datetime) -> str:
 
 class ScheduledRoutineAlarmMixin:
     alarms: list[ScheduledRoutineAlarm]
+    cues: list[ScheduledRoutineAlarm]
     alarm_capable: bool = False
     alarms_loaded: bool = False
+    cues_loaded: bool = False
     _alarm_api: "Hatch | None" = None
     _alarm_auth_token: str | None = None
 
@@ -360,34 +367,54 @@ class ScheduledRoutineAlarmMixin:
         api: "Hatch",
         auth_token: str,
         alarms: list[ScheduledRoutineAlarm] | None = None,
+        cues: list[ScheduledRoutineAlarm] | None = None,
     ) -> None:
         self._alarm_api = api
         self._alarm_auth_token = auth_token
         self.alarm_capable = True
         self.alarms_loaded = alarms is not None
         self.alarms = list(alarms or [])
+        self.cues_loaded = cues is not None
+        self.cues = list(cues or [])
 
     def alarm_by_id(self, alarm_id: int | str) -> ScheduledRoutineAlarm | None:
-        alarm_id_string = str(alarm_id)
-        return next(
-            (
-                alarm
-                for alarm in getattr(self, "alarms", [])
-                if str(alarm.get("id")) == alarm_id_string
-            ),
-            None,
-        )
+        return _routine_by_id(getattr(self, "alarms", []), alarm_id)
+
+    def cue_by_id(self, cue_id: int | str) -> ScheduledRoutineAlarm | None:
+        return _routine_by_id(getattr(self, "cues", []), cue_id)
 
     async def refresh_alarms(self) -> list[ScheduledRoutineAlarm]:
-        api, auth_token = self._configured_alarm_api()
-        self.alarms = await api.scheduled_routines(
-            auth_token=auth_token,
-            mac=self.mac,
-            types=[ALARM_ROUTINE_TYPE],
-        )
+        self.alarms = await self._fetch_scheduled_routines(ALARM_ROUTINE_TYPE)
         self.alarms_loaded = True
         self.publish_updates()
         return self.alarms
+
+    async def refresh_cues(self) -> list[ScheduledRoutineAlarm]:
+        self.cues = await self._fetch_scheduled_routines(CUE_ROUTINE_TYPE)
+        self.cues_loaded = True
+        self.publish_updates()
+        return self.cues
+
+    async def set_cue_enabled(self, cue_id: int | str, enabled: bool) -> None:
+        cue = self.cue_by_id(cue_id)
+        if cue is None:
+            await self.refresh_cues()
+            cue = self.cue_by_id(cue_id)
+        if cue is None:
+            raise ValueError(f"Cue {cue_id} not found for {self.device_name}")
+
+        api, auth_token = self._configured_alarm_api()
+        updated_cues = await api.update_scheduled_routine_cue_enabled(
+            auth_token=auth_token,
+            mac=self.mac,
+            cue=cue,
+            enabled=enabled,
+        )
+        self.cues = _merge_routines(
+            self.cues,
+            updated_cues or [{**cue, **alarm_update_payload(cue, enabled)}],
+        )
+        self.publish_updates()
 
     async def set_alarm_enabled(self, alarm_id: int | str, enabled: bool) -> None:
         alarm = self.alarm_by_id(alarm_id)
@@ -470,23 +497,50 @@ class ScheduledRoutineAlarmMixin:
             raise RuntimeError(f"{self.device_name} alarm API is not configured")
         return self._alarm_api, self._alarm_auth_token
 
-    def _replace_alarms(self, updated_alarms: list[ScheduledRoutineAlarm]) -> None:
-        if not updated_alarms:
-            return
-
-        by_id = {
-            str(alarm.get("id")): alarm
-            for alarm in updated_alarms
-            if alarm.get("id") is not None
-        }
-        merged = [
-            by_id.get(str(alarm.get("id")), alarm)
-            for alarm in getattr(self, "alarms", [])
-        ]
-        existing_ids = {str(alarm.get("id")) for alarm in merged}
-        merged.extend(
-            alarm
-            for alarm_id, alarm in by_id.items()
-            if alarm_id not in existing_ids
+    async def _fetch_scheduled_routines(
+        self,
+        routine_type: str,
+    ) -> list[ScheduledRoutineAlarm]:
+        api, auth_token = self._configured_alarm_api()
+        return await api.scheduled_routines(
+            auth_token=auth_token,
+            mac=self.mac,
+            types=[routine_type],
         )
-        self.alarms = merged
+
+    def _replace_alarms(self, updated_alarms: list[ScheduledRoutineAlarm]) -> None:
+        self.alarms = _merge_routines(getattr(self, "alarms", []), updated_alarms)
+
+
+def _routine_by_id(
+    routines: list[ScheduledRoutineAlarm],
+    routine_id: int | str,
+) -> ScheduledRoutineAlarm | None:
+    routine_id_string = str(routine_id)
+    return next(
+        (
+            routine
+            for routine in routines
+            if str(routine.get("id")) == routine_id_string
+        ),
+        None,
+    )
+
+
+def _merge_routines(
+    routines: list[ScheduledRoutineAlarm],
+    updated_routines: list[ScheduledRoutineAlarm],
+) -> list[ScheduledRoutineAlarm]:
+    by_id = {
+        str(routine.get("id")): routine
+        for routine in updated_routines
+        if routine.get("id") is not None
+    }
+    merged = [by_id.get(str(routine.get("id")), routine) for routine in routines]
+    existing_ids = {str(routine.get("id")) for routine in merged}
+    merged.extend(
+        routine
+        for routine_id, routine in by_id.items()
+        if routine_id not in existing_ids
+    )
+    return merged

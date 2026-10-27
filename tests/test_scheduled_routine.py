@@ -33,6 +33,7 @@ class FakeSession:
     def __init__(self):
         self.calls = []
         self.last_mrds = []
+        self.last_type = "alarm"
 
     async def get(self, url: str, headers: dict, params: dict):
         self.calls.append(("GET", url, headers, params))
@@ -58,12 +59,13 @@ class FakeSession:
         self.calls.append(("POST", url, headers, json))
         if url.endswith("/service/app/routine/v2/editMultiple"):
             self.last_mrds = json["mrds"]
+            self.last_type = json["type"]
             item = {
                 "id": json["mrds"][0]["id"],
                 "name": json["mrds"][0]["name"],
                 "active": json["mrds"][0]["active"],
                 "enabled": json["mrds"][0]["enabled"],
-                "type": "alarm",
+                "type": self.last_type,
                 "macAddress": "AA:BB:CC",
                 "startTime": json["mrds"][0]["startTime"],
                 "endTime": json["mrds"][0]["endTime"],
@@ -86,7 +88,7 @@ class FakeSession:
             "name": self.last_mrds[0]["name"],
             "active": self.last_mrds[0]["active"],
             "enabled": self.last_mrds[0]["enabled"],
-            "type": "alarm",
+            "type": self.last_type,
             "macAddress": "AA:BB:CC",
             "startTime": self.last_mrds[0]["startTime"],
             "endTime": self.last_mrds[0]["endTime"],
@@ -127,6 +129,16 @@ class EmptyAlarmUpdateApi:
         weekdays,
     ):
         self.calls.append((auth_token, mac, alarm["id"], list(weekdays)))
+        return []
+
+    async def update_scheduled_routine_cue_enabled(
+        self,
+        auth_token: str,
+        mac: str,
+        cue: dict,
+        enabled: bool,
+    ):
+        self.calls.append((auth_token, mac, cue["id"], enabled))
         return []
 
 
@@ -612,7 +624,98 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
         })
 
 
+    async def test_cue_update_uses_cue_edit_type_and_returns_only_cues(self):
+        session = FakeSession()
+        api = Hatch(client_session=session)
+        cue = {
+            "id": 3,
+            "name": "Cue",
+            "active": True,
+            "enabled": True,
+            "type": "cue",
+            "macAddress": "AA:BB:CC",
+            "displayOrder": 0,
+            "startTime": "2022-06-16 01:30:00",
+            "endTime": None,
+            "daysOfWeek": 127,
+        }
+
+        updated = await api.update_scheduled_routine_cue_enabled(
+            auth_token="token",
+            mac="AA:BB:CC",
+            cue=cue,
+            enabled=False,
+        )
+
+        self.assertEqual(updated, [
+            {
+                "id": 3,
+                "name": "Cue",
+                "active": True,
+                "enabled": False,
+                "type": "cue",
+                "macAddress": "AA:BB:CC",
+                "startTime": "2022-06-16 01:30:00",
+                "endTime": None,
+            }
+        ])
+        _, edit_url, _, edit_body = session.calls[0]
+        self.assertTrue(edit_url.endswith("/service/app/routine/v2/editMultiple"))
+        self.assertEqual(edit_body["type"], "cue")
+        self.assertEqual(edit_body["mrds"][0]["id"], 3)
+        self.assertIs(edit_body["mrds"][0]["enabled"], False)
+        self.assertEqual(edit_body["mrds"][0]["startTime"], "2022-06-16 01:30:00")
+
+
 class ScheduledRoutineAlarmMixinTest(unittest.IsolatedAsyncioTestCase):
+    async def test_refresh_cues_fetches_only_cue_routines(self):
+        api = RefreshAlarmApi(
+            [{"id": 3, "name": "Cue", "type": "cue", "macAddress": "AA:BB:CC"}]
+        )
+        device = FakeAlarmDevice()
+        device.configure_alarm_api(api=api, auth_token="token", alarms=[])
+
+        self.assertIs(device.cues_loaded, False)
+
+        refreshed = await device.refresh_cues()
+
+        self.assertEqual(api.calls, [("token", "AA:BB:CC", ["cue"])])
+        self.assertIs(device.cues_loaded, True)
+        self.assertEqual(refreshed, api.alarms)
+        self.assertEqual(device.cues, api.alarms)
+        self.assertEqual(device.alarms, [])
+        self.assertEqual(device.publish_count, 1)
+
+    async def test_set_cue_enabled_fallback_updates_only_the_cue(self):
+        api = EmptyAlarmUpdateApi()
+        device = FakeAlarmDevice()
+        alarm = {"id": 2, "name": "Wake", "enabled": True, "type": "alarm"}
+        device.configure_alarm_api(
+            api=api,
+            auth_token="token",
+            alarms=[alarm],
+            cues=[
+                {
+                    "id": 3,
+                    "name": "Cue",
+                    "active": True,
+                    "enabled": True,
+                    "type": "cue",
+                    "startTime": "2022-06-16 01:30:00",
+                    "endTime": None,
+                    "daysOfWeek": 127,
+                }
+            ],
+        )
+
+        await device.set_cue_enabled(3, False)
+
+        self.assertEqual(api.calls, [("token", "AA:BB:CC", 3, False)])
+        self.assertIs(device.cue_by_id(3)["enabled"], False)
+        self.assertEqual(device.cue_by_id(3)["startTime"], "2022-06-16 01:30:00")
+        self.assertEqual(device.alarms, [alarm])
+        self.assertEqual(device.publish_count, 1)
+
     async def test_failed_initial_fetch_remains_alarm_capable_for_refresh(self):
         api = RefreshAlarmApi(
             [
