@@ -275,36 +275,44 @@ class RestIot(ShadowClientSubscriberMixin):
 
     def turn_light_off(self):
         _LOGGER.debug("Turning light off")
-        # if favorite is playing then light can be turned off without turning off sound
-        if self.current_playing == "routine":
-            self._update(
-                {
-                    "current": {
-                        "color": {
-                            "id": NO_COLOR_ID,
-                            "r": 0,
-                            "g": 0,
-                            "b": 0,
-                            "w": 0,
-                        }
-                    }
+        color_off = {
+            "id": NO_COLOR_ID,
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "w": 0,
+        }
+        # Only the light: a sound that is playing keeps playing (favorites and remote alike).
+        if self.current_playing == "routine" or (self.current_playing == "remote" and self.is_playing):
+            self._update({"current": {"color": color_off}})
+        elif self.current_playing == "remote":
+            self._update({"current": {"playing": "none", "color": color_off}})
+
+    def stop_sound(self):
+        """Stop the sound only; a light that is on stays on. With no light on, turns the device off."""
+        _LOGGER.debug("Stopping sound")
+        if not self.is_light_on:
+            self.turn_off()
+            return
+        # Take manual control (a favorite would re-apply its own sound), keeping the light as it is.
+        self._update(
+            {
+                "current": {
+                    "srId": 0,
+                    "step": 0,
+                    "playing": "remote",
+                    "sound": {"id": NO_SOUND_ID, "mute": False, "until": "indefinite"},
+                    "color": {
+                        "id": self.color_id,
+                        "r": convert_from_hex(self.red),
+                        "g": convert_from_hex(self.green),
+                        "b": convert_from_hex(self.blue),
+                        "i": convert_from_percentage(self.brightness),
+                        "w": self.white,
+                    },
                 }
-            )
-        if self.current_playing == "remote":
-            self._update(
-                {
-                    "current": {
-                        "playing": "none",
-                        "color": {
-                            "id": NO_COLOR_ID,
-                            "r": 0,
-                            "g": 0,
-                            "b": 0,
-                            "w": 0,
-                        },
-                    }
-                }
-            )
+            }
+        )
 
     def set_color(
         self, red: int, green: int, blue: int, white: int = 0, brightness: int = 0
