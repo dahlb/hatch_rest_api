@@ -11,3 +11,7 @@ class RateError(BaseError):
 
 class AuthError(BaseError):
     pass
+
+
+class DeviceSyncError(BaseError):
+    """The device did not confirm a change it had to take over MQTT."""

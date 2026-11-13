@@ -9,6 +9,9 @@ Api Wrapper for Hatch Rest mini API using async in python, this was inspired by 
 
 a lot of this is a port of [homebridge-hatch-baby-rest](https://github.com/dgreif/homebridge-hatch-baby-rest) from node.
 
+Device notes:
+- [The original Hatch Restore (product `restore`)](docs/restore.md): its shadow layout, which writes work, and its separate alarm API
+
 ***
 
 [hatch_rest_api]: https://github.com/dahlb/hatch_rest_api

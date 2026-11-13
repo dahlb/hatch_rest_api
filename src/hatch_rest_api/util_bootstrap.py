@@ -20,6 +20,7 @@ from .rest_baby import RestBaby
 from .rest_iot import RestIot
 from .rest_mini import RestMini
 from .rest_plus import RestPlus
+from .restore import Restore, fetch_restore_alarms
 from .restore_iot import RestoreIot
 from .restore_v4 import RestoreV4
 from .restore_v5 import RestoreV5
@@ -148,6 +149,12 @@ async def get_rest_devices(
     alarms_map = await _get_alarms_for_all_scheduled_routine_devices(
         api, token, iot_devices
     )
+    restore_routines_map = await _probe_routines_for_restore_devices(
+        api, token, iot_devices
+    )
+    restore_alarms_map = await _fetch_alarms_for_restore_devices(
+        api, token, iot_devices
+    )
     sounds_map = await _get_sound_content_for_all_v2_devices(
         api, token, contentful, iot_devices
     )
@@ -243,6 +250,23 @@ async def get_rest_devices(
                 favorites=favorites,
                 sounds=sounds_map[mac_address],
             )
+        elif iot_device["product"] == "restore":
+            # Must stay explicit: an unmatched product falls through to
+            # RestMini below, which reads a shadow this model does not have.
+            restore = Restore(
+                device_name=iot_device["name"],
+                thing_name=iot_device["thingName"],
+                mac=mac_address,
+                shadow_client=shadow_client,
+                routines=restore_routines_map.get(mac_address),
+            )
+            alarms, alarm_api_url = restore_alarms_map.get(mac_address) or (None, None)
+            # Configured even when the first fetch failed, so the periodic
+            # alarm refresh can try again.
+            restore.configure_alarm_api(
+                api=api, auth_token=token, alarms=alarms, api_url=alarm_api_url
+            )
+            return restore
         elif iot_device["product"] == "restoreIot":
             return _with_alarm_api(
                 RestoreIot(
@@ -325,6 +349,51 @@ async def _get_routines_for_all_v2_devices(api, token, iot_devices):
             _LOGGER.debug(f"Routines for {mac}: {routines}")
             mac_to_routines[mac] = routines
     return mac_to_routines
+
+
+async def _probe_routines_for_restore_devices(api, token, iot_devices):
+    """Fetch routines for original Restores, without letting a failure count.
+
+    Whether the routine endpoint serves this model has not been confirmed, so
+    unlike the helpers for the other models a failure here, rate limiting
+    included, is logged and skipped instead of failing setup. A device whose
+    fetch failed maps to None.
+    """
+    mac_to_routines = {}
+    for device in iot_devices:
+        if device["product"] != "restore":
+            continue
+        mac = device["macAddress"]
+        try:
+            routines = await api.routines(auth_token=token, mac=mac)
+        except Exception as e:
+            # Not only ClientError: an unexpected payload shape surfaces as
+            # KeyError or AttributeError from the response parsing.
+            _LOGGER.debug(f"Could not fetch routines for restore {mac}: {e!r}")
+            routines = None
+        _LOGGER.debug(f"Routines for restore {mac}: {routines}")
+        mac_to_routines[mac] = routines
+    return mac_to_routines
+
+
+async def _fetch_alarms_for_restore_devices(api, token, iot_devices):
+    """Fetch original Restores' alarms; a failure is logged, not raised.
+
+    Maps each MAC to (alarms, base URL that served them), or to None when the
+    fetch failed, in which case the device still comes up without alarms.
+    """
+    mac_to_alarms = {}
+    for device in iot_devices:
+        if device["product"] != "restore":
+            continue
+        mac = device["macAddress"]
+        try:
+            mac_to_alarms[mac] = await fetch_restore_alarms(api, token, mac)
+        except Exception as e:
+            _LOGGER.debug(f"Could not fetch alarms for restore {mac}: {e!r}")
+            mac_to_alarms[mac] = None
+        _LOGGER.debug(f"Alarms for restore {mac}: {mac_to_alarms[mac]}")
+    return mac_to_alarms
 
 
 async def _get_alarms_for_all_scheduled_routine_devices(api, token, iot_devices):

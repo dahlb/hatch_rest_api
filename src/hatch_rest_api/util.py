@@ -26,6 +26,15 @@ def clean_dictionary_for_logging(dictionary: dict[str, any]) -> dict[str, any]:
     return mutable_dictionary
 
 
+def clean_for_logging(value):
+    """clean_dictionary_for_logging for a request body that may be a list."""
+    if isinstance(value, dict):
+        return clean_dictionary_for_logging(value)
+    if isinstance(value, list):
+        return [clean_for_logging(item) for item in value]
+    return value
+
+
 def convert_from_percentage(percentage: int):
     return int(round(percentage / 100.0 * MAX_IOT_VALUE)) & 0xFFFF
 
