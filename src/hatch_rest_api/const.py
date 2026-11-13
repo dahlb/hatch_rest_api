@@ -309,3 +309,110 @@ TIME_FOR_BED_TRACKS = list(TimeForBedTrack)
 RIOT_FLAGS_CLOCK_24_HOUR = 1 << 11
 RIOT_FLAGS_CLOCK_ON = 1 << 15
 RIOT_FLAGS_CLOCK_IGNORE_TAP = 1 << 5
+
+# Original Restore (product "restore"). Its sounds live on the device's SD card
+# and its content catalog is a fixed legacy one, so these lists do not change.
+# Names and ids are from service/app/content/v1/fetchByProduct?product=restore,
+# in the order the Hatch app lists them.
+RESTORE_SOUNDS: dict[int, str] = {
+    10081: "Night's Tranquility",
+    10071: "Sea Wind",
+    10027: "Chirping Birds",
+    10064: "Mountain Alps",
+    10070: "Arctic Wind",
+    10079: "Forest Song",
+    10085: "Evening Campfire",
+    10089: "Snowstorm",
+    10040: "Light Rain",
+    10039: "Heavy Rain",
+    10045: "Spring Rain",
+    10051: "Rain on Leaves",
+    10054: "Calm Ocean",
+    10059: "River Creek",
+    10062: "Small Waterfall",
+    10066: "Mountain Waterfall",
+    10068: "Mighty River",
+    10022: "Sea Waves",
+    10055: "Sunny Beach",
+    10117: "Tranquil Beach",
+    10036: "Pink Noise",
+    10033: "White Noise",
+    10034: "Soft White Noise",
+    10037: "Soft Pink Noise",
+    10019: "Fan",
+    10086: "Fireplace",
+    10113: "Washer",
+    10115: "Dishwasher",
+    10096: "Wind Chimes",
+    10102: "Thin Singing Bowl",
+    10106: "Tibetan Bells",
+}
+# Sounds the app only offers for alarms.
+RESTORE_ALARM_SOUNDS: dict[int, str] = {
+    10028: "Morning Bird",
+    10029: "Bells",
+    10030: "Lovely Chimes",
+    10031: "Relaxing Chimes",
+    10104: "Chinese Bells",
+    10116: "Meditative Flute",
+    10024: "Beep Beep",
+    10025: "Signal",
+    10026: "Retro Alarm",
+    10094: "Old Clock Variations",
+}
+RESTORE_COLORS: dict[int, str] = {
+    228: "White",
+    229: "Warm White",
+    205: "Coral",
+    206: "Red",
+    207: "Light Orange",
+    208: "Peach",
+    209: "Orange",
+    210: "Light Yellow",
+    211: "Yellow",
+    212: "Gold",
+    213: "Light Green",
+    214: "Mint",
+    215: "Green",
+    225: "Light Turquoise",
+    226: "Aqua",
+    227: "Turquoise",
+    216: "Light Blue",
+    217: "Sky",
+    218: "Blue",
+    220: "Lilac",
+    221: "Purple",
+    222: "Light Pink",
+}
+# A second palette in the catalog reuses the names above; only for naming a
+# color the device reports.
+RESTORE_BASIC_COLORS: dict[int, str] = {
+    233: "White",
+    234: "Red",
+    235: "Orange",
+    236: "Yellow",
+    237: "Green",
+    238: "Sky",
+    239: "Blue",
+    240: "Purple",
+    241: "Pink",
+}
+# Sunrise colors the app only offers for alarms.
+RESTORE_SUNRISE_COLORS: dict[int, str] = {
+    20: "Malibu Sunrise",
+    23: "Portland Lighthouse",
+    24: "Morning in Prague",
+    25: "Hiking in the Dawn",
+    26: "Nordic Sunrise",
+    27: "Morning Stroll",
+    28: "Tropical Morning",
+    29: "Sunrise of a Flower Orchard",
+    37: "Conquering Fuji",
+    38: "Spring Sunrise",
+}
+RESTORE_SOUND_NAMES: dict[int, str] = {**RESTORE_SOUNDS, **RESTORE_ALARM_SOUNDS}
+RESTORE_COLOR_NAMES: dict[int, str] = {
+    **RESTORE_BASIC_COLORS,
+    **RESTORE_SUNRISE_COLORS,
+    **RESTORE_COLORS,
+}

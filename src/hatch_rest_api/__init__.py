@@ -1,10 +1,11 @@
 from .aws_http import AwsHttp
-from .errors import BaseError, RateError, AuthError
+from .errors import BaseError, RateError, AuthError, DeviceSyncError
 from .hatch import Hatch
 from .rest_mini import RestMini
 from .rest_plus import RestPlus
 from .rest_iot import RestIot
 from .rest_baby import RestBaby
+from .restore import Restore
 from .restore_iot import RestoreIot
 from .restore_v4 import RestoreV4
 from .restore_v5 import RestoreV5
@@ -24,4 +25,4 @@ from .const import (
     TimeForBedTrack,
     TIME_FOR_BED_TRACKS,
 )
-RestDevice = RestMini | RestPlus | RestIot | RestBaby | RestoreIot | RestoreV4 | RestoreV5
+RestDevice = RestMini | RestPlus | RestIot | RestBaby | Restore | RestoreIot | RestoreV4 | RestoreV5
