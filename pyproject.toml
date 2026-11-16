@@ -45,6 +45,9 @@ lint = [
 ]
 pytest = [
     "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-timeout",
 ]
 dev = [
     { include-group = "lint" },
@@ -101,4 +104,23 @@ max-complexity = 25
 ignore-words-list = "hass,ba,fo"
 
 [tool.pytest.ini_options]
+addopts = """
+  --quiet
+  --timeout=20
+  --durations=10
+  -o console_output_style=progress
+  --cov=hatch_rest_api
+  --cov-report=term-missing
+  --cov-report=html
+"""
 testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+branch = true
+source = ["hatch_rest_api"]
+relative_files = true
+parallel = false
+
+[tool.coverage.report]
+show_missing = true

@@ -11,3 +11,5 @@ activate
 .venv/
 .coverage
 htmlcov/
+.pytest_cache/
+coverage.xml
