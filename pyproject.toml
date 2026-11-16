@@ -1,10 +1,5 @@
 [build-system]
-requires = [
-    "setuptools>=77.0",
-    "wheel",
-    "aiohttp>=3.9.3",
-    "awsiotsdk>=1.21.1"
-]
+requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -16,13 +11,13 @@ authors = [
 description = "Hatch Rest mini Api Wrapper"
 readme = "README.md"
 requires-python = ">=3.12.0, <4"
+license = "MIT"
 dependencies = [
     "aiohttp>=3.8.1",
     "awsiotsdk>=1.16.0"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3.12",
@@ -40,6 +35,7 @@ keywords = [
 
 [dependency-groups]
 lint = [
+    "mypy",
     "prek",
     "ruff",
 ]
@@ -54,8 +50,36 @@ dev = [
     { include-group = "pytest" },
 ]
 
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.setuptools.dynamic]
 version = { attr = "hatch_rest_api.const.VERSION" }
+
+[tool.mypy]
+python_version = "3.12"
+# Scoped to the library only, matching blueair_api: the test suite relies on
+# duck-typed fakes passed where device classes are expected, which doesn't
+# type-check without a disproportionate rewrite. mypy is not yet part of
+# scripts/lint or CI: the library still has existing type errors to fix first,
+# after which scripts/lint and a py.typed marker can follow carrier_api.
+files = ["src/hatch_rest_api"]
+mypy_path = "src"
+check_untyped_defs = true
+explicit_package_bases = true
+pretty = true
+show_error_codes = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "awscrt.*",
+    "awsiot.*",
+]
+ignore_missing_imports = true
 
 [tool.ruff]
 target-version = "py312"
