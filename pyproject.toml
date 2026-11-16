@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "setuptools>=68.0.0",
+    "setuptools>=77.0",
     "wheel",
     "aiohttp>=3.9.3",
     "awsiotsdk>=1.21.1"
@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hatch_rest_api"
-version = "1.36.0"
+dynamic = ["version"]
 authors = [
   { name="Brendan Dahl", email="dahl.brendan@gmail.com" },
 ]
@@ -53,6 +53,9 @@ dev = [
     { include-group = "lint" },
     { include-group = "pytest" },
 ]
+
+[tool.setuptools.dynamic]
+version = { attr = "hatch_rest_api.const.VERSION" }
 
 [tool.ruff]
 target-version = "py312"

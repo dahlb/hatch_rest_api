@@ -27,7 +27,7 @@ src/hatch_rest_api/
   scheduled_routine.py        Alarm (scheduled routine) helpers and ScheduledRoutineAlarmMixin
   rest_mini.py, rest_plus.py, rest_iot.py, rest_baby.py,
   restore_iot.py, restore_v4.py, restore_v5.py   One class per device family
-  const.py                    Audio track enums, color/sound sentinel IDs, product constants
+  const.py                    VERSION, audio track enums, color/sound sentinel IDs, product constants
   errors.py                   BaseError, AuthError, RateError
   util.py, util_http.py       Value conversion, safe JSON access, request logging/redaction
   live_smoke_test.py          Interactive script that hits the real Hatch APIs (not unit-tested)
@@ -91,7 +91,8 @@ Run lint and tests before finishing any change. CI runs both on every PR.
 - Commit messages and PR titles **must** use Conventional / semantic commit format
   (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:` ...). The PR title is
   linted, and releases are cut from these messages.
-- Do not edit `version` in `pyproject.toml`; the release workflow bumps it, tags, creates
+- Do not edit `VERSION` in `src/hatch_rest_api/const.py` (`pyproject.toml` reads it as a
+  dynamic version); the release workflow bumps it, tags, creates
   the GitHub release, and publishes to PyPI on every push to `main`.
 - Dependency bumps come from Dependabot (ruff bumps auto-merge) and hook revisions in
   `prek.toml` from `prek_autoupdate.yml`; don't hand-edit either unless that is the task.

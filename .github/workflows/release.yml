@@ -21,10 +21,14 @@ jobs:
         if: ${{steps.semantic_release_info.outputs.version != ''}}
         run: |
           echo "Version: ${{steps.semantic_release_info.outputs.version}}"
-          sed -i "s/^version = \".*\"/version = \"${{steps.semantic_release_info.outputs.version}}\"/g" pyproject.toml
+          sed -i "s/^VERSION: str = \".*\"/VERSION: str = \"${{steps.semantic_release_info.outputs.version}}\"/g" src/hatch_rest_api/const.py
+          if ! grep -Fq "VERSION: str = \"${{steps.semantic_release_info.outputs.version}}\"" src/hatch_rest_api/const.py; then
+            echo "Expected src/hatch_rest_api/const.py to contain the new VERSION after version update" >&2
+            exit 1
+          fi
           git config --local user.email "dahl.brendan@gmail.com"
           git config --local user.name "Brendan Dahl"
-          git add -A
+          git add src/hatch_rest_api/const.py
           git commit -m "chore: bumping version to ${{steps.semantic_release_info.outputs.version}}"
           git tag ${{ steps.semantic_release_info.outputs.git_tag }}
 
