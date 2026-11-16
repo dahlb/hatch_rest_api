@@ -359,7 +359,7 @@ async def test_maybe_send_sample_control_update_respects_read_only() -> None:
 class FakeClientSession:
     """aiohttp session double that records closing."""
 
-    instances: ClassVar[list["FakeClientSession"]] = []
+    instances: ClassVar[list[FakeClientSession]] = []
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Track every created session."""

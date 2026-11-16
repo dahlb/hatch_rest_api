@@ -32,15 +32,15 @@ class SoundContent(TypedDict):
     tier: str
     extent: str
     alarmOnly: bool
-    author: "Any | None"
-    narrator: "Any | None"
-    duration: "Any | None"
+    author: Any | None
+    narrator: Any | None
+    duration: Any | None
     imageUrl: str
-    mp3Url: "str | None"
-    wavUrl: "str | None"
+    mp3Url: str | None
+    wavUrl: str | None
     color: Any
-    series: "list[Any]"
-    products: "list[str]"
+    series: list[Any]
+    products: list[str]
     libraryVersion: int
     libraryVersionString: str
     url: str
@@ -48,16 +48,16 @@ class SoundContent(TypedDict):
     hatchId: int
     contentSource: str
     seriesSize: int
-    tagIds: "list"
-    altTagIds: "list"
-    mixIds: "list"
-    red: "Any | None"
-    green: "Any | None"
-    blue: "Any | None"
-    white: "Any | None"
+    tagIds: list
+    altTagIds: list
+    mixIds: list
+    red: Any | None
+    green: Any | None
+    blue: Any | None
+    white: Any | None
     sixCharacterColor: str
     rotateSeries: bool
-    contentfulId: "Any | None"
+    contentfulId: Any | None
     rotationType: str
     legacy: bool
     contentId: int

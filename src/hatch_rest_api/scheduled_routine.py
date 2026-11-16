@@ -404,12 +404,12 @@ class ScheduledRoutineAlarmMixin:
     alarms: list[ScheduledRoutineAlarm]
     alarm_capable: bool = False
     alarms_loaded: bool = False
-    _alarm_api: "Hatch | None" = None
+    _alarm_api: Hatch | None = None
     _alarm_auth_token: str | None = None
 
     def configure_alarm_api(
         self,
-        api: "Hatch",
+        api: Hatch,
         auth_token: str,
         alarms: list[ScheduledRoutineAlarm] | None = None,
     ) -> None:
@@ -551,7 +551,7 @@ class ScheduledRoutineAlarmMixin:
             self._replace_alarms([{**alarm, **alarm_weekdays_update_payload(alarm, weekdays_list)}])
         self.publish_updates()
 
-    def _configured_alarm_api(self) -> tuple["Hatch", str]:
+    def _configured_alarm_api(self) -> tuple[Hatch, str]:
         if self._alarm_api is None or self._alarm_auth_token is None:
             raise RuntimeError(f"{self.device_name} alarm API is not configured")
         return self._alarm_api, self._alarm_auth_token
