@@ -1,13 +1,15 @@
+"""Exceptions raised by the Hatch Rest API client."""
+
 from aiohttp import ClientError
 
 
 class BaseError(ClientError):
-    pass
+    """Base class for all errors raised by this library."""
 
 
 class RateError(BaseError):
-    pass
+    """Raised when the Hatch API rate limits a request."""
 
 
 class AuthError(BaseError):
-    pass
+    """Raised when the Hatch API rejects the supplied credentials."""

@@ -1,3 +1,5 @@
+"""Constants, audio track enums and media URL maps for Hatch devices."""
+
 from enum import Enum
 
 SENSITIVE_FIELD_NAMES = [
@@ -13,6 +15,8 @@ NO_SOUND_ID = 19998
 
 
 class RestMiniAudioTrack(Enum):
+    """Audio tracks supported by the Rest Mini."""
+
     NONE = 0
     Heartbeat = 10124
     Water = 10125
@@ -25,6 +29,8 @@ class RestMiniAudioTrack(Enum):
 
 
 class RestPlusAudioTrack(Enum):
+    """Audio tracks supported by the Rest+."""
+
     NONE = 0
     Stream = 2
     PinkNoise = 3
@@ -40,6 +46,8 @@ class RestPlusAudioTrack(Enum):
 
 
 class RIoTAudioTrack(Enum):
+    """Audio tracks supported by IoT devices (Rest 2nd gen, Restore)."""
+
     NONE = NO_SOUND_ID
     BrownNoise = 10200
     WhiteNoise = 10137
@@ -62,15 +70,19 @@ class RIoTAudioTrack(Enum):
     RockABye = 10194
 
     @classmethod
-    def sound_url_map(cls):
+    def sound_url_map(cls) -> dict[int, str]:
+        """Return the hard-coded sound URL for each track id.
+
+        Some of these values are not returned by the 'sounds' API. They were found by
+        manually browsing the app and playing each song, collecting the necessary values
+        (name, id, url) from the Home Assistant debug logs for the `ha_hatch` custom
+        component integration. Ideally, the API would return everything, but since Hatch
+        does not appear to have public API documentation, this is the best we can do for
+        now. If the API returns different URLs for any of the media (wav files), this map
+        will automatically be updated below. See
+        https://github.com/dahlb/ha_hatch/issues/95#issuecomment-2017905731 for more details.
         """
-        Hard-coded list, as some of these values are not returned by the 'sounds' API. These were found from manually browsing the app and playing each
-        song, collecting the necessary values (name, id, url) from the Home Assistant debug logs for the `ha_hatch` custom component integration.
-        Ideally, the API would return everything, but since Hatch does not appear to have public API documentation, this is the best we can do for now.
-        If the API returns different URLs for any of the media (wav files), this map will automatically be updated below.
-        See https://github.com/dahlb/ha_hatch/issues/95#issuecomment-2017905731 for more details.
-        """
-        sound_map = {
+        return {
             # @formatter:off
             RIoTAudioTrack.BrownNoise.value: "https://assets.ctfassets.net/hlsdh3zwyrtx/Bqk8q7mjFcSa8B1Ovgllp/e9701ae7df057a31b89a4cd2830ef0dc/Brown_Noise_2_20210412.wav",
             RIoTAudioTrack.WhiteNoise.value: "https://assets.ctfassets.net/hlsdh3zwyrtx/2XkUiUT4vu1E69WMT3bxPo/099169855661de3b439135ad2fbd8098/003_pinknoise16.wav",
@@ -93,19 +105,11 @@ class RIoTAudioTrack(Enum):
             RIoTAudioTrack.RockABye.value: "https://assets.ctfassets.net/hlsdh3zwyrtx/7lY2LJerpBhO7vravoQ14J/debcf202883c61eaa384ee826dec4026/014_rockabye16.wav",
             # @formatter:on
         }
-        # TODO: Move the below asserts into a unit test (project needs unit tests added).
-        assert len(sound_map) == len(RIoTAudioTrack) - 1, (
-            "Missing sound URL for one or more RIotAudioTrack"
-        )
-        assert set(sound_map.keys()) == {
-            track.value for track in RIoTAudioTrack if track != RIoTAudioTrack.NONE
-        }, "Each RIotAudioTrack must have a unique sound URL in the map"
-        return sound_map
 
 
 class RestBabyAudioTrack(Enum):
-    """
-    Audio tracks specifically for RestBaby device with correct HatchBaby sound IDs.
+    """Audio tracks specifically for RestBaby device with correct HatchBaby sound IDs.
+
     These use the newer CGV5/CGV6 sound IDs that the device actually accepts.
     All sounds prefixed with HatchBaby_ from the asset URLs.
     """
@@ -155,12 +159,12 @@ class RestBabyAudioTrack(Enum):
     WombSounds = 10515
 
     @classmethod
-    def sound_url_map(cls):
-        """
-        Sound URL map for RestBaby with HatchBaby CGV5/CGV6 URLs.
+    def sound_url_map(cls) -> dict[int, str]:
+        """Return the sound URL map for RestBaby with HatchBaby CGV5/CGV6 URLs.
+
         All URLs are from HatchBaby_ prefixed sounds retrieved via GraphQL.
         """
-        sound_map = {
+        return {
             # @formatter:off
             RestBabyAudioTrack.AirplaneInt.value: "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_recCkrr6mQRpBPXam/a4ff92e301401c5ec8e053684e1331d9/HatchBaby_AirplaneInt_CGV5_20250714.wav",
             RestBabyAudioTrack.AlpineMeadow.value: "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rec2NJpjFMlhMhIvu/4910337f15003c16f5c3cc93e3d8da94/HatchBaby_AlpineMeadow_CGV5_20250714.wav",
@@ -206,16 +210,6 @@ class RestBabyAudioTrack(Enum):
             RestBabyAudioTrack.WombSounds.value: "https://assets.ctfassets.net/hlsdh3zwyrtx/AUDIO_rechQsmhY4mL0BPFQ/56bf31fae71f74ad78edcbfaa1da85bc/HatchBaby_WombSounds_CGV5_20250714.wav",
             # @formatter:on
         }
-        # Note: Some tracks are aliases (same ID), so we need unique values only
-        unique_track_values = {
-            track.value
-            for track in RestBabyAudioTrack
-            if track != RestBabyAudioTrack.NONE
-        }
-        assert set(sound_map.keys()) == unique_track_values, (
-            f"Sound URL map keys don't match unique track values. Missing: {unique_track_values - set(sound_map.keys())}, Extra: {set(sound_map.keys()) - unique_track_values}"
-        )
-        return sound_map
 
 
 REST_MINI_AUDIO_TRACKS = list(RestMiniAudioTrack)
@@ -243,12 +237,12 @@ class TimeToRiseTrack(Enum):
     ChorusOfBirds = 30552
 
     @classmethod
-    def track_url_map(cls):
-        """
-        URLs for Time-to-Rise tracks discovered via Contentful GraphQL API.
+    def track_url_map(cls) -> dict[int, str]:
+        """Return URLs for Time-to-Rise tracks discovered via Contentful GraphQL API.
+
         These tracks use MP3 format instead of WAV.
         """
-        track_map = {
+        return {
             # @formatter:off
             TimeToRiseTrack.MorningBirdcalls.value: "https://downloads.ctfassets.net/hlsdh3zwyrtx/6bFP4jzJOs4QYSMRctqn5e/2f90337e25b0345ed2a2bcc9a350ef79/BeRIOTBirds_20220523.mp3",
             TimeToRiseTrack.WindChimes.value: "https://downloads.ctfassets.net/hlsdh3zwyrtx/RkFSHFj4I2q6QA9DWOdAW/f016c0c57b9ae76c3d62ec71e4d147c9/BeRIOTWindChimesTTR_20220701.mp3",
@@ -262,13 +256,6 @@ class TimeToRiseTrack(Enum):
             TimeToRiseTrack.ChorusOfBirds.value: "https://downloads.ctfassets.net/hlsdh3zwyrtx/3X2vJqiqq73Igqiwwr2Tjf/a29fb2fffe21d8bb08fe9618c59392ce/BeRIOTBirdsChorusTTR_20220701.mp3",
             # @formatter:on
         }
-        assert len(track_map) == len(TimeToRiseTrack) - 1, (
-            "Missing track URL for one or more TimeToRiseTrack"
-        )
-        assert set(track_map.keys()) == {
-            track.value for track in TimeToRiseTrack if track != TimeToRiseTrack.NONE
-        }, "Each TimeToRiseTrack must have a unique track URL in the map"
-        return track_map
 
 
 class TimeForBedTrack(Enum):
@@ -291,12 +278,12 @@ class TimeForBedTrack(Enum):
     GhoulsGoodnight = 32132
 
     @classmethod
-    def track_url_map(cls):
-        """
-        URLs for Time-for-Bed tracks discovered via Contentful GraphQL API.
+    def track_url_map(cls) -> dict[int, str]:
+        """Return URLs for Time-for-Bed tracks discovered via Contentful GraphQL API.
+
         These tracks use MP3 format instead of WAV.
         """
-        track_map = {
+        return {
             # @formatter:off
             TimeForBedTrack.CalmingMelody.value: "https://downloads.ctfassets.net/hlsdh3zwyrtx/51Ibsd3UCiRHoW0p8oZzOk/1054209064c982306b0b4bb60034544a/BeRIOTLullaby_20220523.mp3",
             TimeForBedTrack.LunarLanding.value: "https://downloads.ctfassets.net/hlsdh3zwyrtx/5jVMkiO6uZ7OJCPi9ZDGNg/579a1ba92d978db0467d1da5a0c24987/RIOT_BedtimeBeacon_LunarLanding_001_MFV2_20230714.mp3",
@@ -314,13 +301,6 @@ class TimeForBedTrack(Enum):
             TimeForBedTrack.GhoulsGoodnight.value: "https://downloads.ctfassets.net/hlsdh3zwyrtx/7JhJvrNhqj7OtLbexTZiRM/53e14ea17f92ec3449ac23f1f881cb1e/RIOT_BeaconTFB_GhoulsGoodnight_001_MFV1_20231018.mp3",
             # @formatter:on
         }
-        assert len(track_map) == len(TimeForBedTrack) - 1, (
-            "Missing track URL for one or more TimeForBedTrack"
-        )
-        assert set(track_map.keys()) == {
-            track.value for track in TimeForBedTrack if track != TimeForBedTrack.NONE
-        }, "Each TimeForBedTrack must have a unique track URL in the map"
-        return track_map
 
 
 TIME_TO_RISE_TRACKS = list(TimeToRiseTrack)

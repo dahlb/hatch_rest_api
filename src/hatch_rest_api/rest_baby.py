@@ -1,28 +1,32 @@
+"""Hatch Rest Baby device."""
+
 import contextlib
 import logging
+from typing import Any
 
-from .types import SoundContent, SimpleSoundContent
-from .util import (
-    convert_to_percentage,
-    safely_get_json_value,
-    convert_from_percentage,
-    convert_from_hex,
-    convert_to_hex,
-)
 from .const import (
-    NO_SOUND_ID,
-    NO_COLOR_ID,
     CUSTOM_COLOR_ID,
+    NO_COLOR_ID,
+    NO_SOUND_ID,
     RIOT_FLAGS_CLOCK_ON,
-    RIoTAudioTrack,
     RestBabyAudioTrack,
 )
 from .shadow_client_subscriber import ShadowClientSubscriberMixin
+from .types import SimpleSoundContent, SoundContent
+from .util import (
+    convert_from_hex,
+    convert_from_percentage,
+    convert_to_hex,
+    convert_to_percentage,
+    safely_get_json_value,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class RestBaby(ShadowClientSubscriberMixin):
+    """Hatch Rest Baby sound machine and night light."""
+
     audio_track: RestBabyAudioTrack = None
     firmware_version: str = None
     volume: int = 0
@@ -39,28 +43,26 @@ class RestBaby(ShadowClientSubscriberMixin):
     blue: int = 0
     white: int = 0
     brightness: int = 0
-    charging_status: int = None  # Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base
+    charging_status: int = (
+        None  # Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base
+    )
     clock: int = None
     flags: int = None
     toddler_lock: bool = False
     toddler_lock_mode: str = None
 
-    def _update_local_state(self, state):
-        _LOGGER.debug(f"update local state: {self.device_name}, {state}")
+    def _update_local_state(self, state: dict[str, Any]) -> None:
+        _LOGGER.debug("update local state: %s, %s", self.device_name, state)
         if safely_get_json_value(state, "deviceInfo.f") is not None:
             self.firmware_version = safely_get_json_value(state, "deviceInfo.f")
         if safely_get_json_value(state, "deviceInfo.b") is not None:
             self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
         if safely_get_json_value(state, "deviceInfo.powerStatus") is not None:
-            self.charging_status = safely_get_json_value(
-                state, "deviceInfo.powerStatus", int
-            )
+            self.charging_status = safely_get_json_value(state, "deviceInfo.powerStatus", int)
         if safely_get_json_value(state, "toddlerLockOn") is not None:
             self.toddler_lock = safely_get_json_value(state, "toddlerLockOn", bool)
         if safely_get_json_value(state, "toddlerLock.turnOnMode") is not None:
-            self.toddler_lock_mode = safely_get_json_value(
-                state, "toddlerLock.turnOnMode", str
-            )
+            self.toddler_lock_mode = safely_get_json_value(state, "toddlerLock.turnOnMode", str)
         if safely_get_json_value(state, "current.playing") is not None:
             self.current_playing = safely_get_json_value(state, "current.playing")
         if safely_get_json_value(state, "current.srId") is not None:
@@ -82,32 +84,25 @@ class RestBaby(ShadowClientSubscriberMixin):
         if safely_get_json_value(state, "current.color.w") is not None:
             self.white = safely_get_json_value(state, "current.color.w", int)
         if safely_get_json_value(state, "current.color.r") is not None:
-            self.red = convert_to_hex(
-                safely_get_json_value(state, "current.color.r", int)
-            )
+            self.red = convert_to_hex(safely_get_json_value(state, "current.color.r", int))
         if safely_get_json_value(state, "current.color.g") is not None:
-            self.green = convert_to_hex(
-                safely_get_json_value(state, "current.color.g", int)
-            )
+            self.green = convert_to_hex(safely_get_json_value(state, "current.color.g", int))
         if safely_get_json_value(state, "current.color.b") is not None:
-            self.blue = convert_to_hex(
-                safely_get_json_value(state, "current.color.b", int)
-            )
+            self.blue = convert_to_hex(safely_get_json_value(state, "current.color.b", int))
         if safely_get_json_value(state, "current.color.i") is not None:
             self.brightness = convert_to_percentage(
                 safely_get_json_value(state, "current.color.i", int)
             )
         if safely_get_json_value(state, "clock.i") is not None:
-            self.clock = convert_to_percentage(
-                safely_get_json_value(state, "clock.i", int)
-            )
+            self.clock = convert_to_percentage(safely_get_json_value(state, "clock.i", int))
         if safely_get_json_value(state, "clock.flags") is not None:
             self.flags = safely_get_json_value(state, "clock.flags", int)
 
-        _LOGGER.debug(f"new state:{self}")
+        _LOGGER.debug("new state:%s", self)
         self.publish_updates()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return the device state as a dictionary for debugging."""
         return {
             "device_name": self.device_name,
             "thing_name": self.thing_name,
@@ -136,26 +131,39 @@ class RestBaby(ShadowClientSubscriberMixin):
             "toddler_lock_mode": self.toddler_lock_mode,
         }
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the device state as a string."""
         return f"{self.__repr__()}"
 
     @property
     def is_on(self) -> bool:
+        """Whether the light is on or a sound is playing."""
         return self.is_light_on or self.is_playing
 
     @property
-    def is_light_on(self):
-        return self.color_id != NO_COLOR_ID and self.color_id != 0
+    def is_light_on(self) -> bool:
+        """Whether the light is on."""
+        return self.color_id not in (NO_COLOR_ID, 0)
 
     @property
-    def is_playing(self):
+    def is_playing(self) -> bool:
+        """Whether a sound is playing."""
         return self.sound_id != NO_SOUND_ID
 
     @property
-    def is_clock_on(self):
-        return self.flags is not None and self.flags & RIOT_FLAGS_CLOCK_ON
+    def is_clock_on(self) -> bool:
+        """Whether the clock display is on."""
+        return self.flags is not None and bool(self.flags & RIOT_FLAGS_CLOCK_ON)
 
-    def favorite_names(self, active_only: bool = True):
+    def favorite_names(self, active_only: bool = True) -> list[str]:
+        """Return favorites as ``name-id`` strings.
+
+        Args:
+            active_only: Currently has no effect; every favorite is returned.
+
+        Returns:
+            One ``name-id`` string per favorite.
+        """
         names = []
         for favorite in self.favorites:
             if active_only and favorite["active"]:
@@ -164,12 +172,14 @@ class RestBaby(ShadowClientSubscriberMixin):
                 names.append(f"{favorite['name']}-{favorite['id']}")
         return names
 
-    def set_volume(self, percentage: int):
-        _LOGGER.debug(f"Setting volume: {percentage}")
+    def set_volume(self, percentage: int) -> None:
+        """Set the volume as a 0-100 percentage."""
+        _LOGGER.debug("Setting volume: %s", percentage)
         self._update({"current": {"sound": {"v": convert_from_percentage(percentage)}}})
 
-    def set_clock(self, brightness: int = 0):
-        _LOGGER.debug(f"Setting clock on: {brightness}")
+    def set_clock(self, brightness: int = 0) -> None:
+        """Turn the clock display on at ``brightness`` percent."""
+        _LOGGER.debug("Setting clock on: %s", brightness)
         current_flags = self.flags if self.flags is not None else 0
         self._update(
             {
@@ -180,31 +190,40 @@ class RestBaby(ShadowClientSubscriberMixin):
             }
         )
 
-    def turn_clock_off(self):
+    def turn_clock_off(self) -> None:
+        """Turn the clock display off."""
         _LOGGER.debug("Turn off clock")
         current_flags = self.flags if self.flags is not None else 0
-        self._update(
-            {"clock": {"flags": current_flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}}
-        )
+        self._update({"clock": {"flags": current_flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}})
 
-    def set_toddler_lock(self, on: bool):
+    def set_toddler_lock(self, on: bool) -> None:
+        """Turn the toddler lock on (mode ``always``) or off (mode ``never``).
+
+        The API also supports a ``custom`` mode for a time range, which is not exposed here.
         """
-        Set toddler lock on or off.
-        Expected string value for mode is "never" or "always"
-        The API also supports "custom" for defining a time range.
-        """
-        _LOGGER.debug(f"Setting Toddler Lock: {on}")
+        _LOGGER.debug("Setting Toddler Lock: %s", on)
         mode = "always" if on else "never"
         self._update({"toddlerLock": {"turnOnMode": mode}})
 
-    # favorite_name_id is expected to be a string of name-id since name alone isn't unique
-    def set_favorite(self, favorite_name_id: str):
-        _LOGGER.debug(f"Setting favorite: {favorite_name_id}")
+    def set_favorite(self, favorite_name_id: str) -> None:
+        """Start a favorite routine.
+
+        Args:
+            favorite_name_id: ``name-id`` string from ``favorite_names``; names alone
+                are not unique.
+        """
+        _LOGGER.debug("Setting favorite: %s", favorite_name_id)
         fav_id = int(favorite_name_id.rsplit("-", 1)[1])
         self._update({"current": {"srId": fav_id, "step": 1, "playing": "routine"}})
 
-    def set_audio_track(self, audio_track: RestBabyAudioTrack, volume: int = None):
-        _LOGGER.debug(f"Setting audio track: {audio_track}")
+    def set_audio_track(self, audio_track: RestBabyAudioTrack, volume: int | None = None) -> None:
+        """Play ``audio_track``, or turn off for ``RestBabyAudioTrack.NONE``.
+
+        Args:
+            audio_track: Track to play.
+            volume: Volume as a 0-100 percentage; defaults to the current volume.
+        """
+        _LOGGER.debug("Setting audio track: %s", audio_track)
         if audio_track == RestBabyAudioTrack.NONE:
             self.turn_off()
             return
@@ -218,7 +237,7 @@ class RestBaby(ShadowClientSubscriberMixin):
                 if sound.get("id") and sound.get("wavUrl")
             }
         )
-        _LOGGER.debug(f"Available Sounds: {sound_url_map}")
+        _LOGGER.debug("Available Sounds: %s", sound_url_map)
 
         # Use provided volume or current volume
         volume_to_use = volume if volume is not None else self.volume
@@ -243,16 +262,10 @@ class RestBaby(ShadowClientSubscriberMixin):
         self,
         sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None,
         duration: int = 0,
-        until="indefinite",
-    ):
-        """
-        Set a sound by passing SoundContent item from self.sounds, id, or title.
-        """
-        if (
-            sound_or_id_or_title is None
-            or sound_or_id_or_title == NO_SOUND_ID
-            or sound_or_id_or_title == "none"
-        ):
+        until: str = "indefinite",
+    ) -> None:
+        """Set a sound by passing SoundContent item from self.sounds, id, or title."""
+        if sound_or_id_or_title is None or sound_or_id_or_title in (NO_SOUND_ID, "none"):
             self.turn_off()
             return
 
@@ -270,10 +283,10 @@ class RestBaby(ShadowClientSubscriberMixin):
             or not sound.get("id")
             or (not sound.get("wavUrl") and not sound.get("mp3Url"))
         ):
-            _LOGGER.error(f"Sound not found: {sound_or_id_or_title}")
+            _LOGGER.error("Sound not found: %s", sound_or_id_or_title)
             return
 
-        _LOGGER.debug(f"Setting sound: {sound.get('title') or sound['id']}")
+        _LOGGER.debug("Setting sound: %s", sound.get("title") or sound["id"])
         self._update(
             {
                 "current": {
@@ -294,13 +307,12 @@ class RestBaby(ShadowClientSubscriberMixin):
     def set_sound_url(
         self,
         sound_url: str = "http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3",
-    ):
-        """
-        appears to work with some but not all public wav and mp3 urls
+    ) -> None:
+        """Appears to work with some but not all public wav and mp3 urls.
 
         i.e. http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3
         """
-        _LOGGER.debug(f"Setting sound URL: {sound_url}")
+        _LOGGER.debug("Setting sound URL: %s", sound_url)
         self._update(
             {
                 "current": {
@@ -317,11 +329,13 @@ class RestBaby(ShadowClientSubscriberMixin):
             }
         )
 
-    def turn_off(self):
+    def turn_off(self) -> None:
+        """Turn off sound and light by stopping the current routine."""
         _LOGGER.debug("Turning off sound")
         self._update({"current": {"srId": 0, "step": 0, "playing": "none"}})
 
-    def turn_light_off(self):
+    def turn_light_off(self) -> None:
+        """Turn off the light; a playing favorite keeps its sound."""
         _LOGGER.debug("Turning light off")
         # if favorite is playing then light can be turned off without turning off sound
         if self.current_playing == "routine":
@@ -356,12 +370,26 @@ class RestBaby(ShadowClientSubscriberMixin):
 
     def set_color(
         self, red: int, green: int, blue: int, white: int = 0, brightness: int = 0
-    ):
+    ) -> None:
+        """Set the light color.
+
+        Args:
+            red: Red channel, 0-255.
+            green: Green channel, 0-255.
+            blue: Blue channel, 0-255.
+            white: White channel value.
+            brightness: Brightness as a 0-100 percentage.
+        """
         new_color_id = CUSTOM_COLOR_ID
         _LOGGER.debug(
-            f"red: {red} green: {green} blue: {blue} brightness: {brightness} white: {white}"
+            "red: %s green: %s blue: %s brightness: %s white: %s",
+            red,
+            green,
+            blue,
+            brightness,
+            white,
         )
-        # If there is no sound playing, and you want to turn on the light the playing value has to be set to remote
+        # With no sound playing, turning on the light requires setting playing to remote.
         if self.current_playing == "none":
             self._update(
                 {
