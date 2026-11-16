@@ -74,10 +74,10 @@ def safely_get_json_value(
         if value is not None:
             try:
                 value = value[x]
-            except (TypeError, KeyError):
+            except TypeError, KeyError:
                 try:
                     value = value[int(x)]
-                except (TypeError, KeyError, ValueError):
+                except TypeError, KeyError, ValueError:
                     value = None
     if callable_to_cast is not None and value is not None:
         value = callable_to_cast(value)

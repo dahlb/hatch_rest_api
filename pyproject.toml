@@ -10,7 +10,7 @@ authors = [
 ]
 description = "Hatch Rest mini Api Wrapper"
 readme = "README.md"
-requires-python = ">=3.12.0, <4"
+requires-python = ">=3.14.0, <4"
 license = "MIT"
 dependencies = [
     "aiohttp>=3.8.1",
@@ -20,7 +20,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Natural Language :: English",
     "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: MacOS :: MacOS X",
 ]
 keywords = [
@@ -60,7 +60,7 @@ where = ["src"]
 version = { attr = "hatch_rest_api.const.VERSION" }
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 # Scoped to the library only, matching blueair_api: the test suite relies on
 # duck-typed fakes passed where device classes are expected, which doesn't
 # type-check without a disproportionate rewrite. mypy is not yet part of
@@ -82,7 +82,7 @@ module = [
 ignore_missing_imports = true
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py314"
 line-length = 100
 indent-width = 4
 fix = true
