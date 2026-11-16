@@ -14,3 +14,4 @@ activate
 htmlcov/
 .pytest_cache/
 coverage.xml
+hatch_rest_api.env
