@@ -1,5 +1,7 @@
-from datetime import datetime, time, timedelta
+"""Helpers and mixin for Hatch scheduled-routine alarms."""
+
 from collections.abc import Iterable
+from datetime import datetime, time, timedelta
 from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 if TYPE_CHECKING:
@@ -40,6 +42,8 @@ WEEKENDS_MASK = WEEKDAY_BITS["sunday"] | WEEKDAY_BITS["saturday"]
 
 
 class ScheduledRoutineAlarm(TypedDict, total=False):
+    """Scheduled-routine alarm as returned by the Hatch API."""
+
     id: int
     name: str
     active: bool
@@ -58,6 +62,21 @@ def alarm_update_payload(
     enabled: bool,
     now: datetime | None = None,
 ) -> dict[str, Any]:
+    """Build the API payload that enables or disables an alarm.
+
+    One-time alarms being enabled are moved to their next occurrence.
+
+    Args:
+        alarm: Alarm to update.
+        enabled: Whether the alarm should be enabled.
+        now: Reference time for one-time alarms; defaults to the current local time.
+
+    Returns:
+        The update payload.
+
+    Raises:
+        ValueError: If the alarm has no id.
+    """
     if "id" not in alarm:
         raise ValueError("Cannot update alarm without an id")
 
@@ -85,6 +104,21 @@ def alarm_wake_time_update_payload(
     wake_time: time,
     now: datetime | None = None,
 ) -> dict[str, Any]:
+    """Build the API payload that changes an alarm's wake time.
+
+    The sunrise lead time before the wake time is preserved.
+
+    Args:
+        alarm: Alarm to update.
+        wake_time: New wake time.
+        now: Reference time for one-time alarms; defaults to the current local time.
+
+    Returns:
+        The update payload.
+
+    Raises:
+        ValueError: If the alarm has no id or its times cannot be parsed.
+    """
     if "id" not in alarm:
         raise ValueError("Cannot update alarm without an id")
 
@@ -115,9 +149,7 @@ def alarm_wake_time_update_payload(
         "displayOrder": alarm.get("displayOrder"),
         "startTime": _format_like_original(start_time, updated_start_time),
         "endTime": (
-            _format_like_original(end_time, updated_end_time)
-            if end_time is not None
-            else None
+            _format_like_original(end_time, updated_end_time) if end_time is not None else None
         ),
     }
 
@@ -126,6 +158,18 @@ def alarm_weekdays_update_payload(
     alarm: ScheduledRoutineAlarm,
     weekdays: Iterable[str],
 ) -> dict[str, Any]:
+    """Build the API payload that changes the days an alarm repeats on.
+
+    Args:
+        alarm: Alarm to update.
+        weekdays: Lower-case weekday names, e.g. ``"monday"``.
+
+    Returns:
+        The update payload.
+
+    Raises:
+        ValueError: If the alarm has no id or a weekday is not recognized.
+    """
     if "id" not in alarm:
         raise ValueError("Cannot update alarm without an id")
 
@@ -142,6 +186,17 @@ def alarm_weekdays_update_payload(
 
 
 def weekdays_to_days_of_week(weekdays: Iterable[str]) -> int:
+    """Convert weekday names into the API's ``daysOfWeek`` bitmask.
+
+    Args:
+        weekdays: Weekday names, or a single weekday name.
+
+    Returns:
+        The ``daysOfWeek`` bitmask.
+
+    Raises:
+        ValueError: If a weekday is not recognized.
+    """
     days_of_week = 0
     if isinstance(weekdays, str):
         weekdays = [weekdays]
@@ -155,15 +210,13 @@ def weekdays_to_days_of_week(weekdays: Iterable[str]) -> int:
 
 
 def days_of_week_to_weekdays(days_of_week: int | None) -> list[str]:
+    """Convert a ``daysOfWeek`` bitmask into lower-case weekday names."""
     normalized_days_of_week = _normalize_days_of_week(days_of_week)
-    return [
-        weekday
-        for weekday, bit in WEEKDAY_BITS.items()
-        if normalized_days_of_week & bit
-    ]
+    return [weekday for weekday, bit in WEEKDAY_BITS.items() if normalized_days_of_week & bit]
 
 
 def days_of_week_label(days_of_week: int | None) -> str:
+    """Return a short human-readable label for a ``daysOfWeek`` bitmask."""
     normalized_days_of_week = _normalize_days_of_week(days_of_week)
     if normalized_days_of_week == 0:
         return "Once"
@@ -179,12 +232,11 @@ def days_of_week_label(days_of_week: int | None) -> str:
     )
 
 
-def alarm_routines(routines: list[ScheduledRoutineAlarm]) -> list[ScheduledRoutineAlarm]:
-    return [
-        routine
-        for routine in routines
-        if routine.get("type") == ALARM_ROUTINE_TYPE
-    ]
+def alarm_routines(
+    routines: list[ScheduledRoutineAlarm],
+) -> list[ScheduledRoutineAlarm]:
+    """Return only the alarm routines from a list of scheduled routines."""
+    return [routine for routine in routines if routine.get("type") == ALARM_ROUTINE_TYPE]
 
 
 def _is_one_time_alarm(alarm: ScheduledRoutineAlarm) -> bool:
@@ -249,9 +301,7 @@ def _alarm_sunrise_lead(
 
     sunrise_duration = _alarm_sunrise_duration_seconds(alarm)
     if sunrise_duration is None:
-        raise ValueError(
-            "Cannot update alarm wake time without a valid sunrise duration"
-        )
+        raise ValueError("Cannot update alarm wake time without a valid sunrise duration")
     return timedelta(seconds=sunrise_duration)
 
 
@@ -303,7 +353,7 @@ def _next_datetime_for_time(
     value = value.replace(tzinfo=None)
 
     if now is None:
-        now = datetime.now()
+        now = datetime.now().astimezone()
     if now.tzinfo is not None:
         now = now.replace(tzinfo=None)
 
@@ -349,6 +399,8 @@ def _format_like_original(original: str | None, value: datetime) -> str:
 
 
 class ScheduledRoutineAlarmMixin:
+    """Device mixin that reads and updates scheduled-routine alarms."""
+
     alarms: list[ScheduledRoutineAlarm]
     alarm_capable: bool = False
     alarms_loaded: bool = False
@@ -361,6 +413,13 @@ class ScheduledRoutineAlarmMixin:
         auth_token: str,
         alarms: list[ScheduledRoutineAlarm] | None = None,
     ) -> None:
+        """Enable alarm support for this device.
+
+        Args:
+            api: Hatch API client used for alarm requests.
+            auth_token: Hatch auth token.
+            alarms: Alarms already fetched for this device, if any.
+        """
         self._alarm_api = api
         self._alarm_auth_token = auth_token
         self.alarm_capable = True
@@ -368,6 +427,7 @@ class ScheduledRoutineAlarmMixin:
         self.alarms = list(alarms or [])
 
     def alarm_by_id(self, alarm_id: int | str) -> ScheduledRoutineAlarm | None:
+        """Return the cached alarm with ``alarm_id``, or ``None`` if not found."""
         alarm_id_string = str(alarm_id)
         return next(
             (
@@ -379,6 +439,11 @@ class ScheduledRoutineAlarmMixin:
         )
 
     async def refresh_alarms(self) -> list[ScheduledRoutineAlarm]:
+        """Fetch this device's alarms from the API and notify callbacks.
+
+        Returns:
+            The refreshed alarms.
+        """
         api, auth_token = self._configured_alarm_api()
         self.alarms = await api.scheduled_routines(
             auth_token=auth_token,
@@ -390,6 +455,15 @@ class ScheduledRoutineAlarmMixin:
         return self.alarms
 
     async def set_alarm_enabled(self, alarm_id: int | str, enabled: bool) -> None:
+        """Enable or disable an alarm.
+
+        Args:
+            alarm_id: Id of the alarm to update.
+            enabled: Whether the alarm should be enabled.
+
+        Raises:
+            ValueError: If the alarm cannot be found.
+        """
         alarm = self.alarm_by_id(alarm_id)
         if alarm is None:
             await self.refresh_alarms()
@@ -407,12 +481,19 @@ class ScheduledRoutineAlarmMixin:
         if updated_alarms:
             self._replace_alarms(updated_alarms)
         else:
-            self._replace_alarms(
-                [{**alarm, **alarm_update_payload(alarm, enabled)}]
-            )
+            self._replace_alarms([{**alarm, **alarm_update_payload(alarm, enabled)}])
         self.publish_updates()
 
     async def set_alarm_wake_time(self, alarm_id: int | str, wake_time: time) -> None:
+        """Change an alarm's wake time.
+
+        Args:
+            alarm_id: Id of the alarm to update.
+            wake_time: New wake time.
+
+        Raises:
+            ValueError: If the alarm cannot be found.
+        """
         alarm = self.alarm_by_id(alarm_id)
         if alarm is None:
             await self.refresh_alarms()
@@ -430,9 +511,7 @@ class ScheduledRoutineAlarmMixin:
         if updated_alarms:
             self._replace_alarms(updated_alarms)
         else:
-            self._replace_alarms(
-                [{**alarm, **alarm_wake_time_update_payload(alarm, wake_time)}]
-            )
+            self._replace_alarms([{**alarm, **alarm_wake_time_update_payload(alarm, wake_time)}])
         self.publish_updates()
 
     async def set_alarm_weekdays(
@@ -440,6 +519,15 @@ class ScheduledRoutineAlarmMixin:
         alarm_id: int | str,
         weekdays: Iterable[str],
     ) -> None:
+        """Change the days an alarm repeats on.
+
+        Args:
+            alarm_id: Id of the alarm to update.
+            weekdays: Lower-case weekday names, e.g. ``"monday"``.
+
+        Raises:
+            ValueError: If the alarm cannot be found.
+        """
         alarm = self.alarm_by_id(alarm_id)
         if alarm is None:
             await self.refresh_alarms()
@@ -460,9 +548,7 @@ class ScheduledRoutineAlarmMixin:
         if updated_alarms:
             self._replace_alarms(updated_alarms)
         else:
-            self._replace_alarms(
-                [{**alarm, **alarm_weekdays_update_payload(alarm, weekdays_list)}]
-            )
+            self._replace_alarms([{**alarm, **alarm_weekdays_update_payload(alarm, weekdays_list)}])
         self.publish_updates()
 
     def _configured_alarm_api(self) -> tuple["Hatch", str]:
@@ -475,18 +561,9 @@ class ScheduledRoutineAlarmMixin:
             return
 
         by_id = {
-            str(alarm.get("id")): alarm
-            for alarm in updated_alarms
-            if alarm.get("id") is not None
+            str(alarm.get("id")): alarm for alarm in updated_alarms if alarm.get("id") is not None
         }
-        merged = [
-            by_id.get(str(alarm.get("id")), alarm)
-            for alarm in getattr(self, "alarms", [])
-        ]
+        merged = [by_id.get(str(alarm.get("id")), alarm) for alarm in getattr(self, "alarms", [])]
         existing_ids = {str(alarm.get("id")) for alarm in merged}
-        merged.extend(
-            alarm
-            for alarm_id, alarm in by_id.items()
-            if alarm_id not in existing_ids
-        )
+        merged.extend(alarm for alarm_id, alarm in by_id.items() if alarm_id not in existing_ids)
         self.alarms = merged

@@ -1,11 +1,15 @@
+"""Discover a Hatch account's devices and connect them to AWS IoT."""
+
 import asyncio
-import logging
+from collections.abc import Callable
 from functools import partial
+import logging
 from re import IGNORECASE, search, sub
+from typing import Any
 from uuid import uuid4
 
 from aiohttp import ClientError, ClientSession
-from awscrt import io
+from awscrt import io, mqtt
 from awscrt.auth import AwsCredentialsProvider
 from awsiot.iotshadow import IotShadowClient
 from awsiot.mqtt_connection_builder import websockets_with_default_aws_signing
@@ -26,11 +30,14 @@ from .restore_v5 import RestoreV5
 from .scheduled_routine import (
     ALARM_ROUTINE_TYPE,
     SCHEDULED_ROUTINE_ALARM_PRODUCTS,
+    ScheduledRoutineAlarm,
     ScheduledRoutineAlarmMixin,
 )
 from .types import SimpleSoundContent
 
 _LOGGER = logging.getLogger(__name__)
+
+RestDevice = RestMini | RestPlus | RestIot | RestBaby | RestoreIot | RestoreV4 | RestoreV5
 
 # Seconds to wait for the MQTT connection to establish before giving up.
 # Prevents thread pool workers from blocking indefinitely when the Hatch
@@ -47,7 +54,7 @@ _RECONCILED_FLAG = "_hatch_rest_api_reconciled"
 io.init_logging(io.LogLevel.NoLogs, "stderr")
 
 
-def _get_client_bootstrap():
+def _get_client_bootstrap() -> io.ClientBootstrap:
     """Return the process-wide ClientBootstrap used for every MQTT connection.
 
     awscrt starts a native event loop thread per EventLoopGroup and only stops
@@ -65,11 +72,9 @@ def _get_client_bootstrap():
     return io.ClientBootstrap.get_or_create_static_default()
 
 
-async def _connect_mqtt(loop, mqtt_connection):
+async def _connect_mqtt(loop: asyncio.AbstractEventLoop, mqtt_connection: mqtt.Connection) -> None:
     connect_future = await loop.run_in_executor(None, mqtt_connection.connect)
-    await loop.run_in_executor(
-        None, partial(connect_future.result, MQTT_CONNECT_TIMEOUT)
-    )
+    await loop.run_in_executor(None, partial(connect_future.result, MQTT_CONNECT_TIMEOUT))
 
 
 def _reconcile_awscrt_arity(error: TypeError) -> bool:
@@ -102,14 +107,14 @@ def _reconcile_awscrt_arity(error: TypeError) -> bool:
     # Imported here so the dependency on awscrt's private extension module is
     # confined to this recovery path.
     try:
-        import _awscrt
+        import _awscrt  # noqa: PLC0415
     except ImportError:
         return False
     binding = getattr(_awscrt, _NATIVE_CONNECT, None)
     if binding is None or getattr(binding, _RECONCILED_FLAG, False):
         return False
 
-    def reconciled_connect(*args):
+    def reconciled_connect(*args: Any) -> Any:
         if len(args) > expected:
             args = args[:expected]
         elif len(args) < expected:
@@ -119,9 +124,11 @@ def _reconcile_awscrt_arity(error: TypeError) -> bool:
     setattr(reconciled_connect, _RECONCILED_FLAG, True)
     setattr(_awscrt, _NATIVE_CONNECT, reconciled_connect)
     _LOGGER.warning(
-        f"awscrt passed {given} arguments to a native connect binding that "
-        f"takes {expected}, so its modules are not all from the same version. "
-        "Reconciling the call and retrying; restart to load a consistent awscrt."
+        "awscrt passed %s arguments to a native connect binding that takes %s, so its "
+        "modules are not all from the same version. Reconciling the call and retrying; "
+        "restart to load a consistent awscrt.",
+        given,
+        expected,
     )
     return True
 
@@ -129,10 +136,26 @@ def _reconcile_awscrt_arity(error: TypeError) -> bool:
 async def get_rest_devices(
     email: str,
     password: str,
-    client_session: ClientSession = None,
-    on_connection_interrupted=None,
-    on_connection_resumed=None,
-):
+    client_session: ClientSession | None = None,
+    on_connection_interrupted: Callable[..., None] | None = None,
+    on_connection_resumed: Callable[..., None] | None = None,
+) -> tuple[Hatch, mqtt.Connection, list[RestDevice], Any]:
+    """Log in, discover the account's devices and connect them over AWS IoT.
+
+    Args:
+        email: Hatch account email.
+        password: Hatch account password.
+        client_session: Optional aiohttp session to reuse for HTTP requests.
+        on_connection_interrupted: Callback passed to the MQTT connection.
+        on_connection_resumed: Callback passed to the MQTT connection.
+
+    Returns:
+        The API client, the MQTT connection, one object per supported device, and the
+        expiration of the AWS credentials, after which the connection must be rebuilt.
+
+    Raises:
+        BaseError: If the account has no compatible devices.
+    """
     loop = asyncio.get_running_loop()
     aws_log_level = io.LogLevel.Debug if _LOGGER.isEnabledFor(logging.DEBUG) else io.LogLevel.NoLogs
     await loop.run_in_executor(None, io.set_log_level, aws_log_level)
@@ -145,26 +168,22 @@ async def get_rest_devices(
     aws_token = await api.token(auth_token=token)
     favorites_map = await _get_favorites_for_all_v2_devices(api, token, iot_devices)
     routines_map = await _get_routines_for_all_v2_devices(api, token, iot_devices)
-    alarms_map = await _get_alarms_for_all_scheduled_routine_devices(
-        api, token, iot_devices
-    )
-    sounds_map = await _get_sound_content_for_all_v2_devices(
-        api, token, contentful, iot_devices
-    )
+    alarms_map = await _get_alarms_for_all_scheduled_routine_devices(api, token, iot_devices)
+    sounds_map = await _get_sound_content_for_all_v2_devices(api, token, contentful, iot_devices)
     aws_http: AwsHttp = AwsHttp(api.api_session)
     aws_credentials = await aws_http.aws_credentials(
         region=aws_token["region"],
         identityId=aws_token["identityId"],
         aws_token=aws_token["token"],
     )
-    _LOGGER.debug(f"AWS credentials: {aws_credentials}")
+    _LOGGER.debug("AWS credentials: %s", aws_credentials)
     credentials_provider = AwsCredentialsProvider.new_static(
         aws_credentials["Credentials"]["AccessKeyId"],
         aws_credentials["Credentials"]["SecretKey"],
         session_token=aws_credentials["Credentials"]["SessionToken"],
     )
     client_bootstrap = _get_client_bootstrap()
-    endpoint = aws_token["endpoint"].lstrip("https://")
+    endpoint = aws_token["endpoint"].removeprefix("https://")
     safe_email = sub("[^a-z]", "", email, flags=IGNORECASE).lower()
     mqtt_connection = await loop.run_in_executor(
         None,
@@ -175,7 +194,7 @@ async def get_rest_devices(
             keep_alive_secs=30,
             client_bootstrap=client_bootstrap,
             endpoint=endpoint,
-            client_id=f"hatch_rest_api/{safe_email}/{str(uuid4())}",
+            client_id=f"hatch_rest_api/{safe_email}/{uuid4()!s}",
             on_connection_interrupted=on_connection_interrupted,
             on_connection_resumed=on_connection_resumed,
             # Opt out of the AWS IoT SDK metrics that awsiot otherwise appends
@@ -200,32 +219,34 @@ async def get_rest_devices(
             await _connect_mqtt(loop, mqtt_connection)
         _LOGGER.debug("mqtt connection connected")
     except Exception as e:
-        _LOGGER.error(f"MQTT connection failed with exception {e}")
-        raise e
+        _LOGGER.error("MQTT connection failed with exception %s", e)
+        raise
 
     shadow_client = IotShadowClient(mqtt_connection)
 
-    def _with_alarm_api(rest_device, alarms):
+    def _with_alarm_api(
+        rest_device: RestDevice, alarms: list[ScheduledRoutineAlarm] | None
+    ) -> RestDevice:
         if isinstance(rest_device, ScheduledRoutineAlarmMixin):
             rest_device.configure_alarm_api(api=api, auth_token=token, alarms=alarms)
         return rest_device
 
-    def create_rest_devices(iot_device):
+    def create_rest_devices(iot_device: dict[str, Any]) -> RestDevice:
         mac_address = iot_device["macAddress"]
         if mac_address in favorites_map:
             favorites = list(favorites_map[mac_address])
         else:
-            _LOGGER.debug(f"Iot device {iot_device} has no favorites")
+            _LOGGER.debug("Iot device %s has no favorites", iot_device)
             favorites = []
         if mac_address in routines_map:
             routines = list(routines_map[mac_address])
         else:
-            _LOGGER.debug(f"Iot device {iot_device} has no routines")
+            _LOGGER.debug("Iot device %s has no routines", iot_device)
             routines = []
         if mac_address in alarms_map:
             alarms = alarms_map[mac_address]
         else:
-            _LOGGER.debug(f"Iot device {iot_device} has no alarms")
+            _LOGGER.debug("Iot device %s has no alarms", iot_device)
             alarms = []
         if iot_device["product"] == "restPlus":
             return RestPlus(
@@ -234,7 +255,7 @@ async def get_rest_devices(
                 mac=mac_address,
                 shadow_client=shadow_client,
             )
-        elif iot_device["product"] in ["riot", "riotPlus"]:
+        if iot_device["product"] in ["riot", "riotPlus"]:
             return RestIot(
                 device_name=iot_device["name"],
                 thing_name=iot_device["thingName"],
@@ -243,7 +264,7 @@ async def get_rest_devices(
                 favorites=favorites,
                 sounds=sounds_map[mac_address],
             )
-        elif iot_device["product"] == "restoreIot":
+        if iot_device["product"] == "restoreIot":
             return _with_alarm_api(
                 RestoreIot(
                     device_name=iot_device["name"],
@@ -255,7 +276,7 @@ async def get_rest_devices(
                 ),
                 alarms,
             )
-        elif iot_device["product"] == "restoreV4":
+        if iot_device["product"] == "restoreV4":
             return _with_alarm_api(
                 RestoreV4(
                     device_name=iot_device["name"],
@@ -267,7 +288,7 @@ async def get_rest_devices(
                 ),
                 alarms,
             )
-        elif iot_device["product"] == "restoreV5":
+        if iot_device["product"] == "restoreV5":
             return _with_alarm_api(
                 RestoreV5(
                     device_name=iot_device["name"],
@@ -279,7 +300,7 @@ async def get_rest_devices(
                 ),
                 alarms,
             )
-        elif iot_device["product"] == "restBaby":
+        if iot_device["product"] == "restBaby":
             return RestBaby(
                 device_name=iot_device["name"],
                 thing_name=iot_device["thingName"],
@@ -288,13 +309,12 @@ async def get_rest_devices(
                 favorites=routines + favorites,
                 sounds=sounds_map[mac_address],
             )
-        else:
-            return RestMini(
-                device_name=iot_device["name"],
-                thing_name=iot_device["thingName"],
-                mac=mac_address,
-                shadow_client=shadow_client,
-            )
+        return RestMini(
+            device_name=iot_device["name"],
+            thing_name=iot_device["thingName"],
+            mac=mac_address,
+            shadow_client=shadow_client,
+        )
 
     rest_devices = map(create_rest_devices, iot_devices)
     return (
@@ -305,29 +325,47 @@ async def get_rest_devices(
     )
 
 
-async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
+async def _get_favorites_for_all_v2_devices(
+    api: Hatch, token: str, iot_devices: list[dict[str, Any]]
+) -> dict[str, list[dict[str, Any]]]:
     mac_to_favorite = {}
     for device in iot_devices:
-        if device["product"] in ["riot", "riotPlus", "restBaby", "restoreV4", "restoreV5"]:
+        if device["product"] in [
+            "riot",
+            "riotPlus",
+            "restBaby",
+            "restoreV4",
+            "restoreV5",
+        ]:
             mac = device["macAddress"]
             favorites = await api.favorites(auth_token=token, mac=mac)
-            _LOGGER.debug(f"Favorites for {mac}: {favorites}")
+            _LOGGER.debug("Favorites for %s: %s", mac, favorites)
             mac_to_favorite[mac] = favorites
     return mac_to_favorite
 
 
-async def _get_routines_for_all_v2_devices(api, token, iot_devices):
+async def _get_routines_for_all_v2_devices(
+    api: Hatch, token: str, iot_devices: list[dict[str, Any]]
+) -> dict[str, list[dict[str, Any]]]:
     mac_to_routines = {}
     for device in iot_devices:
-        if device["product"] in ["riot", "restBaby", "restoreIot", "restoreV4", "restoreV5"]:
+        if device["product"] in [
+            "riot",
+            "restBaby",
+            "restoreIot",
+            "restoreV4",
+            "restoreV5",
+        ]:
             mac = device["macAddress"]
             routines = await api.routines(auth_token=token, mac=mac)
-            _LOGGER.debug(f"Routines for {mac}: {routines}")
+            _LOGGER.debug("Routines for %s: %s", mac, routines)
             mac_to_routines[mac] = routines
     return mac_to_routines
 
 
-async def _get_alarms_for_all_scheduled_routine_devices(api, token, iot_devices):
+async def _get_alarms_for_all_scheduled_routine_devices(
+    api: Hatch, token: str, iot_devices: list[dict[str, Any]]
+) -> dict[str, list[ScheduledRoutineAlarm] | None]:
     mac_to_alarms = {}
     for device in iot_devices:
         if device["product"] in SCHEDULED_ROUTINE_ALARM_PRODUCTS:
@@ -341,31 +379,25 @@ async def _get_alarms_for_all_scheduled_routine_devices(api, token, iot_devices)
             except RateError:
                 raise
             except ClientError as e:
-                _LOGGER.warning(
-                    f"Could not fetch alarm routines for {mac}: {str(e)}"
-                )
+                _LOGGER.warning("Could not fetch alarm routines for %s: %s", mac, e)
                 alarms = None
-            _LOGGER.debug(f"Alarms for {mac}: {alarms}")
+            _LOGGER.debug("Alarms for %s: %s", mac, alarms)
             mac_to_alarms[mac] = alarms
     return mac_to_alarms
 
 
 async def _get_sound_content_for_all_v2_devices(
-    api: Hatch, token: str, contentful: Contentful, iot_devices
+    api: Hatch, token: str, contentful: Contentful, iot_devices: list[dict[str, Any]]
 ) -> dict[str, list[SimpleSoundContent]]:
     mac_to_sounds = {}
     for device in iot_devices:
         mac = device["macAddress"]
         if device["product"] in ["riot", "riotPlus", "restBaby"]:
             try:
-                content = await api.content(
-                    auth_token=token, product="riot", content=["sound"]
-                )
+                content = await api.content(auth_token=token, product="riot", content=["sound"])
                 sounds = [s for s in content["contentItems"] if s["id"] != NO_SOUND_ID]
             except RateError as e:
-                _LOGGER.warning(
-                    f"Rate limit error when fetching sounds for {mac}: {str(e)}"
-                )
+                _LOGGER.warning("Rate limit error when fetching sounds for %s: %s", mac, e)
                 sounds = []
         elif device["product"] in ["restoreV4", "restoreV5"]:
             try:
@@ -410,12 +442,10 @@ async def _get_sound_content_for_all_v2_devices(
                     if s["id"] != NO_SOUND_ID
                 ]
             except RateError as e:
-                _LOGGER.warning(
-                    f"Rate limit error when fetching sounds for {mac}: {str(e)}"
-                )
+                _LOGGER.warning("Rate limit error when fetching sounds for %s: %s", mac, e)
                 sounds = []
         else:
             sounds = []
-        _LOGGER.debug(f"Sounds for {mac}: {sounds}")
+        _LOGGER.debug("Sounds for %s: %s", mac, sounds)
         mac_to_sounds[mac] = sounds
     return mac_to_sounds

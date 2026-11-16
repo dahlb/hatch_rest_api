@@ -1,29 +1,24 @@
-name: "Lint"
+name: Lint
 
 on:
-  push:
-    branches:
-      - "main"
   pull_request:
     branches:
-      - "main"
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  ruff:
-    name: "Ruff"
-    runs-on: "ubuntu-latest"
+  linters:
+    name: Run Linters
+    runs-on: ubuntu-latest
     steps:
-        - name: "Checkout the repository"
-          uses: "actions/checkout@v7"
+      - name: Checkout Repository
+        uses: actions/checkout@v7
 
-        - name: "Set up Python"
-          uses: actions/setup-python@v7
-          with:
-            python-version: "3.10"
-            cache: "pip"
-
-        - name: "Install requirements"
-          run: python3 -m pip install -r requirements.txt
-
-        - name: "Run"
-          run: python3 -m ruff check .
+      - name: Run prek
+        uses: j178/prek-action@v3.1.0

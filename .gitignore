@@ -8,3 +8,8 @@ src/hatch_rest_api.egg-info/
 build/
 hatch_rest_api-aws_mqtt.log
 activate
+.venv/
+.coverage
+htmlcov/
+.pytest_cache/
+coverage.xml

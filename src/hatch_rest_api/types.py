@@ -1,20 +1,22 @@
-from typing import TypedDict, Any
+"""Typed dictionaries describing Hatch content payloads."""
+
+from typing import Any, TypedDict
 
 
 class SimpleSoundContent(TypedDict):
-    """
-    This is a partial type of only the fields used internally
-    """
+    """This is a partial type of only the fields used internally."""
+
     id: int
     title: str
     wavUrl: str
 
 
 class SoundContent(TypedDict):
-    """
+    """Full sound content payload returned by the Hatch API.
+
     No guarantees here, some display fields may be nullable.
     These types were inferred based off the free/included content
-    from a Rest Gen2 (riot) device
+    from a Rest Gen2 (riot) device.
     """
 
     id: int

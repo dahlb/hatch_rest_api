@@ -1,7 +1,9 @@
+"""Client for the Hatch REST API."""
+
 import asyncio
-import logging
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from datetime import time
+import logging
 from typing import Any
 
 from aiohttp import ClientError, ClientResponse, ClientSession, __version__
@@ -13,8 +15,8 @@ from .scheduled_routine import (
     ScheduledRoutineAlarm,
     alarm_routines,
     alarm_update_payload,
-    alarm_weekdays_update_payload,
     alarm_wake_time_update_payload,
+    alarm_weekdays_update_payload,
 )
 from .util_http import request_with_logging
 
@@ -23,27 +25,41 @@ _LOGGER = logging.getLogger(__name__)
 API_URL: str = "https://data.hatchbaby.com/"
 
 
-def request_with_logging_and_errors(func):
-    async def request_with_logging_wrapper(*args, **kwargs):
+def request_with_logging_and_errors(
+    func: Callable[..., Awaitable[ClientResponse]],
+) -> Callable[..., Awaitable[ClientResponse]]:
+    """Wrap a Hatch API request coroutine with status and error handling.
+
+    Args:
+        func: Coroutine that performs the request and returns the response.
+
+    Returns:
+        The wrapped coroutine. It raises ``RateError`` on HTTP 429, ``AuthError`` when
+        the session is invalid, and ``ClientError`` for any other API failure.
+    """
+
+    async def request_with_logging_wrapper(*args: Any, **kwargs: Any) -> ClientResponse:
         response = await func(*args, **kwargs)
 
         if response.status == 429:
-            _LOGGER.warning(f"Rate limited (429) for URL: {response.url}")
+            _LOGGER.warning("Rate limited (429) for URL: %s", response.url)
             raise RateError("API rate limit exceeded. Please wait before retrying.")
 
         try:
             response_json = await response.json()
-        except Exception:
+        except Exception as err:
             try:
                 response_text = await response.text()
                 _LOGGER.error(
-                    f"Failed to parse JSON response. Status: {response.status}, Content: {response_text[:500]}"
+                    "Failed to parse JSON response. Status: %s, Content: %s",
+                    response.status,
+                    response_text[:500],
                 )
-            except Exception:
-                _LOGGER.error(f"Failed to parse response. Status: {response.status}")
+            except Exception:  # noqa: BLE001 - best-effort diagnostics only
+                _LOGGER.error("Failed to parse response. Status: %s", response.status)
             raise ClientError(
                 f"Invalid response format from API (status: {response.status})"
-            )
+            ) from err
 
         if response_json.get("status") == "success":
             return response
@@ -57,20 +73,24 @@ def request_with_logging_and_errors(func):
 
 
 class Hatch:
-    def __init__(self, client_session: ClientSession = None):
+    """Async client for the Hatch REST API at data.hatchbaby.com."""
+
+    def __init__(self, client_session: ClientSession | None = None) -> None:
+        """Create the client, optionally reusing an existing aiohttp session."""
         if client_session is None:
             self.api_session = ClientSession(raise_for_status=True)
         else:
             self.api_session = client_session
-        _LOGGER.debug(f"api_session_version: {__version__}")
+        _LOGGER.debug("api_session_version: %s", __version__)
 
-    async def cleanup_client_session(self):
+    async def cleanup_client_session(self) -> None:
+        """Close the underlying aiohttp session."""
         await self.api_session.close()
 
     @request_with_logging_and_errors
     @request_with_logging
     async def _post_request_with_logging_and_errors_raised(
-        self, url: str, json_body: dict, auth_token: str = None
+        self, url: str, json_body: dict, auth_token: str | None = None
     ) -> ClientResponse:
         headers = {USER_AGENT: "hatch_rest_api"}
         if auth_token is not None:
@@ -80,7 +100,7 @@ class Hatch:
     @request_with_logging
     @request_with_logging_and_errors
     async def _get_request_with_logging_and_errors_raised(
-        self, url: str, auth_token: str = None, params: dict = None
+        self, url: str, auth_token: str | None = None, params: dict | None = None
     ) -> ClientResponse:
         headers = {USER_AGENT: "hatch_rest_api"}
         if auth_token is not None:
@@ -88,30 +108,37 @@ class Hatch:
         return await self.api_session.get(url=url, headers=headers, params=params)
 
     async def login(self, email: str, password: str) -> str:
+        """Log in and return a Hatch auth token.
+
+        Args:
+            email: Hatch account email.
+            password: Hatch account password.
+
+        Returns:
+            The auth token for subsequent requests.
+        """
         url = API_URL + "public/v1/login"
         json_body = {
             "email": email,
             "password": password,
         }
-        response: ClientResponse = (
-            await self._post_request_with_logging_and_errors_raised(
-                url=url, json_body=json_body
-            )
+        response: ClientResponse = await self._post_request_with_logging_and_errors_raised(
+            url=url, json_body=json_body
         )
         response_json = await response.json()
         return response_json["token"]
 
-    async def member(self, auth_token: str):
+    async def member(self, auth_token: str) -> dict[str, Any]:
+        """Return the account member details."""
         url = API_URL + "service/app/v2/member"
-        response: ClientResponse = (
-            await self._get_request_with_logging_and_errors_raised(
-                url=url, auth_token=auth_token
-            )
+        response: ClientResponse = await self._get_request_with_logging_and_errors_raised(
+            url=url, auth_token=auth_token
         )
         response_json = await response.json()
         return response_json["payload"]
 
-    async def iot_devices(self, auth_token: str):
+    async def iot_devices(self, auth_token: str) -> list[dict[str, Any]]:
+        """Return the account's IoT devices for every supported product."""
         url = API_URL + "service/app/iotDevice/v2/fetch"
         params = {
             "iotProducts": [
@@ -125,44 +152,39 @@ class Hatch:
                 "restoreV5",
             ]
         }
-        response: ClientResponse = (
-            await self._get_request_with_logging_and_errors_raised(
-                url=url, auth_token=auth_token, params=params
-            )
+        response: ClientResponse = await self._get_request_with_logging_and_errors_raised(
+            url=url, auth_token=auth_token, params=params
         )
         response_json = await response.json()
         return response_json["payload"]
 
-    async def token(self, auth_token: str):
+    async def token(self, auth_token: str) -> dict[str, Any]:
+        """Return the AWS IoT token payload (region, identity id and token)."""
         url = API_URL + "service/app/restPlus/token/v1/fetch"
-        response: ClientResponse = (
-            await self._get_request_with_logging_and_errors_raised(
-                url=url, auth_token=auth_token
-            )
+        response: ClientResponse = await self._get_request_with_logging_and_errors_raised(
+            url=url, auth_token=auth_token
         )
         response_json = await response.json()
         return response_json["payload"]
 
-    async def favorites(self, auth_token: str, mac: str):
+    async def favorites(self, auth_token: str, mac: str) -> list[dict[str, Any]]:
+        """Return the favorites for a device, sorted by display order."""
         url = API_URL + "service/app/routine/v2/fetch"
         params = {"macAddress": mac}
-        response: ClientResponse = (
-            await self._get_request_with_logging_and_errors_raised(
-                url=url, auth_token=auth_token, params=params
-            )
+        response: ClientResponse = await self._get_request_with_logging_and_errors_raised(
+            url=url, auth_token=auth_token, params=params
         )
         response_json = await response.json()
         favorites = response_json["payload"]
         favorites.sort(key=lambda x: x.get("displayOrder", float("inf")))
         return favorites
 
-    async def routines(self, auth_token: str, mac: str):
+    async def routines(self, auth_token: str, mac: str) -> list[dict[str, Any]]:
+        """Return the routines for a device, sorted by display order."""
         url = API_URL + "service/app/routine/v2/fetch"
         params = {"macAddress": mac, "types": "routine"}
-        response: ClientResponse = (
-            await self._get_request_with_logging_and_errors_raised(
-                url=url, auth_token=auth_token, params=params
-            )
+        response: ClientResponse = await self._get_request_with_logging_and_errors_raised(
+            url=url, auth_token=auth_token, params=params
         )
         response_json = await response.json()
         routines = response_json["payload"]
@@ -175,14 +197,22 @@ class Hatch:
         mac: str,
         types: list[str] | None = None,
     ) -> list[ScheduledRoutineAlarm]:
+        """Return the v3 scheduled routines for a device, sorted by display order.
+
+        Args:
+            auth_token: Hatch auth token.
+            mac: Device MAC address.
+            types: Routine types to include, e.g. ``["alarm"]``; all types if omitted.
+
+        Returns:
+            The scheduled routines.
+        """
         url = API_URL + "service/app/routine/v3/fetch"
         params: dict[str, str | list[str]] = {"macAddress": mac}
         if types is not None:
             params["types"] = types
-        response: ClientResponse = (
-            await self._get_request_with_logging_and_errors_raised(
-                url=url, auth_token=auth_token, params=params
-            )
+        response: ClientResponse = await self._get_request_with_logging_and_errors_raised(
+            url=url, auth_token=auth_token, params=params
         )
         response_json = await response.json()
         routines = response_json["payload"]
@@ -196,6 +226,11 @@ class Hatch:
         alarm: ScheduledRoutineAlarm,
         enabled: bool,
     ) -> list[ScheduledRoutineAlarm]:
+        """Enable or disable an alarm.
+
+        Returns:
+            The device's alarms after the update.
+        """
         return await self._edit_and_confirm_alarm_routines(
             auth_token=auth_token,
             mac=mac,
@@ -209,12 +244,15 @@ class Hatch:
         alarm: ScheduledRoutineAlarm,
         wake_time: time,
     ) -> list[ScheduledRoutineAlarm]:
+        """Change an alarm's wake time.
+
+        Returns:
+            The device's alarms after the update.
+        """
         return await self._edit_and_confirm_alarm_routines(
             auth_token=auth_token,
             mac=mac,
-            mutable_scheduled_routines=[
-                alarm_wake_time_update_payload(alarm, wake_time)
-            ],
+            mutable_scheduled_routines=[alarm_wake_time_update_payload(alarm, wake_time)],
         )
 
     async def update_scheduled_routine_alarm_weekdays(
@@ -224,12 +262,15 @@ class Hatch:
         alarm: ScheduledRoutineAlarm,
         weekdays: Iterable[str],
     ) -> list[ScheduledRoutineAlarm]:
+        """Change the days an alarm repeats on.
+
+        Returns:
+            The device's alarms after the update.
+        """
         return await self._edit_and_confirm_alarm_routines(
             auth_token=auth_token,
             mac=mac,
-            mutable_scheduled_routines=[
-                alarm_weekdays_update_payload(alarm, weekdays)
-            ],
+            mutable_scheduled_routines=[alarm_weekdays_update_payload(alarm, weekdays)],
         )
 
     async def _edit_and_confirm_alarm_routines(
@@ -278,17 +319,25 @@ class Hatch:
         auth_token: str,
         mutable_scheduled_routines: list[dict[str, Any]],
         routine_type: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
+        """Submit edits to one or more scheduled routines.
+
+        Args:
+            auth_token: Hatch auth token.
+            mutable_scheduled_routines: Routine update payloads.
+            routine_type: Type of the routines being edited.
+
+        Returns:
+            The API payload, including any data version that must be confirmed.
+        """
         url = API_URL + "service/app/routine/v2/editMultiple"
-        response: ClientResponse = (
-            await self._post_request_with_logging_and_errors_raised(
-                url=url,
-                auth_token=auth_token,
-                json_body={
-                    "mrds": mutable_scheduled_routines,
-                    "type": routine_type,
-                },
-            )
+        response: ClientResponse = await self._post_request_with_logging_and_errors_raised(
+            url=url,
+            auth_token=auth_token,
+            json_body={
+                "mrds": mutable_scheduled_routines,
+                "type": routine_type,
+            },
         )
         response_json = await response.json()
         return response_json["payload"]
@@ -301,50 +350,69 @@ class Hatch:
         success: bool = True,
         return_all_routines: bool = True,
     ) -> list[ScheduledRoutineAlarm]:
+        """Confirm a routine data version after an edit.
+
+        Args:
+            auth_token: Hatch auth token.
+            mac: Device MAC address.
+            data_version: Data version returned by the edit.
+            success: Whether the edit should be confirmed as successful.
+            return_all_routines: Whether to return all routines in the response.
+
+        Returns:
+            The device's routines.
+        """
         url = API_URL + "service/app/v2/dataVersion"
-        response: ClientResponse = (
-            await self._post_request_with_logging_and_errors_raised(
-                url=url,
-                auth_token=auth_token,
-                json_body={
-                    "dataVersion": data_version,
-                    "macAddress": mac,
-                    "success": success,
-                    "returnAllRoutines": return_all_routines,
-                },
-            )
+        response: ClientResponse = await self._post_request_with_logging_and_errors_raised(
+            url=url,
+            auth_token=auth_token,
+            json_body={
+                "dataVersion": data_version,
+                "macAddress": mac,
+                "success": success,
+                "returnAllRoutines": return_all_routines,
+            },
         )
         response_json = await response.json()
         return response_json["payload"]
 
     async def content(
-        self, auth_token: str, product: str, content: list, max_retries: int = 3
-    ):
-        # content options are ["sound", "color", "windDown"]
+        self, auth_token: str, product: str, content: list[str], max_retries: int = 3
+    ) -> dict[str, Any]:
+        """Fetch content for a product, retrying with backoff when rate limited.
+
+        Args:
+            auth_token: Hatch auth token.
+            product: Product name, e.g. ``"riot"``.
+            content: Content types to fetch: ``"sound"``, ``"color"`` and/or ``"windDown"``.
+            max_retries: Number of retries after a rate-limit response.
+
+        Returns:
+            The content payload, with the items under ``contentItems``.
+        """
         url = API_URL + "service/app/content/v1/fetchByProduct"
         params = {"product": product, "contentTypes": content}
 
         retry_count = 0
         while True:
             try:
-                response: ClientResponse = (
-                    await self._get_request_with_logging_and_errors_raised(
-                        url=url, auth_token=auth_token, params=params
-                    )
+                response: ClientResponse = await self._get_request_with_logging_and_errors_raised(
+                    url=url, auth_token=auth_token, params=params
                 )
                 response_json = await response.json()
                 return response_json["payload"]
             except RateError:
                 retry_count += 1
                 if retry_count > max_retries:
-                    _LOGGER.error(
-                        f"Maximum retries ({max_retries}) exceeded for content API call"
-                    )
+                    _LOGGER.error("Maximum retries (%s) exceeded for content API call", max_retries)
                     raise
 
                 # Calculate exponential backoff wait time (2^retry_count seconds)
                 wait_time = 2**retry_count
                 _LOGGER.warning(
-                    f"Rate limited. Retrying in {wait_time} seconds (attempt {retry_count}/{max_retries})"
+                    "Rate limited. Retrying in %s seconds (attempt %s/%s)",
+                    wait_time,
+                    retry_count,
+                    max_retries,
                 )
                 await asyncio.sleep(wait_time)
