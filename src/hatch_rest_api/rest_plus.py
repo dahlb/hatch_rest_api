@@ -120,7 +120,9 @@ class RestPlus(ShadowClientSubscriberMixin):
     def set_on(self, on: bool):
         self._update({"isPowered": on})
 
-    def set_color(self, red: int, green: int, blue: int, brightness: int, random: bool = False):
+    def set_color(
+        self, red: int, green: int, blue: int, brightness: int, random: bool = False
+    ):
         self._update(
             {
                 "c": {

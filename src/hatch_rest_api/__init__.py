@@ -24,4 +24,7 @@ from .const import (
     TimeForBedTrack,
     TIME_FOR_BED_TRACKS,
 )
-RestDevice = RestMini | RestPlus | RestIot | RestBaby | RestoreIot | RestoreV4 | RestoreV5
+
+RestDevice = (
+    RestMini | RestPlus | RestIot | RestBaby | RestoreIot | RestoreV4 | RestoreV5
+)

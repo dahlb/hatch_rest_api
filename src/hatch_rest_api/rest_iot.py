@@ -52,7 +52,9 @@ class RestIot(ShadowClientSubscriberMixin):
         if safely_get_json_value(state, "deviceInfo.b") is not None:
             self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
         if safely_get_json_value(state, "deviceInfo.powerStatus") is not None:
-            self.charging_status = safely_get_json_value(state, "deviceInfo.powerStatus", int)
+            self.charging_status = safely_get_json_value(
+                state, "deviceInfo.powerStatus", int
+            )
         if safely_get_json_value(state, "toddlerLockOn") is not None:
             self.toddler_lock = safely_get_json_value(state, "toddlerLockOn", bool)
         if safely_get_json_value(state, "toddlerLock.turnOnMode") is not None:
@@ -206,22 +208,39 @@ class RestIot(ShadowClientSubscriberMixin):
 
         sound_url_map = RIoTAudioTrack.sound_url_map()
         # update the map with any changes from the API
-        sound_url_map.update({
-            sound.get('id'): sound.get('wavUrl') for sound in self.sounds
-        })
-        _LOGGER.debug(f'Available Sounds: {sound_url_map}')
-        self._update({"current": {"playing": "remote", "step": 1, "sound": {
-                "id": audio_track.value,
-                "url": sound_url_map[audio_track.value],
-                "mute": False,
-                "until": "indefinite",
-            }}})
+        sound_url_map.update(
+            {sound.get("id"): sound.get("wavUrl") for sound in self.sounds}
+        )
+        _LOGGER.debug(f"Available Sounds: {sound_url_map}")
+        self._update(
+            {
+                "current": {
+                    "playing": "remote",
+                    "step": 1,
+                    "sound": {
+                        "id": audio_track.value,
+                        "url": sound_url_map[audio_track.value],
+                        "mute": False,
+                        "until": "indefinite",
+                    },
+                }
+            }
+        )
 
-    def set_sound(self, sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None, duration: int = 0, until="indefinite"):
+    def set_sound(
+        self,
+        sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None,
+        duration: int = 0,
+        until="indefinite",
+    ):
         """
         Set a sound by passing SoundContent item from self.sounds, id, or title.
         """
-        if sound_or_id_or_title is None or sound_or_id_or_title == NO_SOUND_ID or sound_or_id_or_title == "none":
+        if (
+            sound_or_id_or_title is None
+            or sound_or_id_or_title == NO_SOUND_ID
+            or sound_or_id_or_title == "none"
+        ):
             self.turn_off()
             return
 
@@ -233,7 +252,12 @@ class RestIot(ShadowClientSubscriberMixin):
             # Assume it's a SoundContent or SimpleSoundContent object
             sound = sound_or_id_or_title
 
-        if not sound or not isinstance(sound, dict) or not sound.get('id') or (not sound.get('wavUrl') and not sound.get('mp3Url')):
+        if (
+            not sound
+            or not isinstance(sound, dict)
+            or not sound.get("id")
+            or (not sound.get("wavUrl") and not sound.get("mp3Url"))
+        ):
             _LOGGER.error(f"Sound not found: {sound_or_id_or_title}")
             return
 
@@ -253,7 +277,10 @@ class RestIot(ShadowClientSubscriberMixin):
             }
         )
 
-    def set_sound_url(self, sound_url: str = 'http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3'):
+    def set_sound_url(
+        self,
+        sound_url: str = "http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3",
+    ):
         """
         appears to work with some but not all public wav and mp3 urls
 
@@ -283,7 +310,9 @@ class RestIot(ShadowClientSubscriberMixin):
             "w": 0,
         }
         # Only the light: a sound that is playing keeps playing (favorites and remote alike).
-        if self.current_playing == "routine" or (self.current_playing == "remote" and self.is_playing):
+        if self.current_playing == "routine" or (
+            self.current_playing == "remote" and self.is_playing
+        ):
             self._update({"current": {"color": color_off}})
         elif self.current_playing == "remote":
             self._update({"current": {"playing": "none", "color": color_off}})

@@ -179,11 +179,11 @@ def days_of_week_label(days_of_week: int | None) -> str:
     )
 
 
-def alarm_routines(routines: list[ScheduledRoutineAlarm]) -> list[ScheduledRoutineAlarm]:
+def alarm_routines(
+    routines: list[ScheduledRoutineAlarm],
+) -> list[ScheduledRoutineAlarm]:
     return [
-        routine
-        for routine in routines
-        if routine.get("type") == ALARM_ROUTINE_TYPE
+        routine for routine in routines if routine.get("type") == ALARM_ROUTINE_TYPE
     ]
 
 
@@ -407,9 +407,7 @@ class ScheduledRoutineAlarmMixin:
         if updated_alarms:
             self._replace_alarms(updated_alarms)
         else:
-            self._replace_alarms(
-                [{**alarm, **alarm_update_payload(alarm, enabled)}]
-            )
+            self._replace_alarms([{**alarm, **alarm_update_payload(alarm, enabled)}])
         self.publish_updates()
 
     async def set_alarm_wake_time(self, alarm_id: int | str, wake_time: time) -> None:
@@ -485,8 +483,6 @@ class ScheduledRoutineAlarmMixin:
         ]
         existing_ids = {str(alarm.get("id")) for alarm in merged}
         merged.extend(
-            alarm
-            for alarm_id, alarm in by_id.items()
-            if alarm_id not in existing_ids
+            alarm for alarm_id, alarm in by_id.items() if alarm_id not in existing_ids
         )
         self.alarms = merged

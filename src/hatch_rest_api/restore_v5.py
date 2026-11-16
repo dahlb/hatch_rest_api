@@ -86,7 +86,9 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
                 safely_get_json_value(state, "current.color.i", int)
             )
         if safely_get_json_value(state, "clock.i") is not None:
-            self.clock_nighttime, self.clock_daytime = unpack_dual_percentages(safely_get_json_value(state, "clock.i", int))
+            self.clock_nighttime, self.clock_daytime = unpack_dual_percentages(
+                safely_get_json_value(state, "clock.i", int)
+            )
         if safely_get_json_value(state, "clock.flags") is not None:
             self.flags = safely_get_json_value(state, "clock.flags", int)
         if safely_get_json_value(state, "clock.turnOffMode") is not None:
@@ -98,7 +100,9 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
         if safely_get_json_value(state, "clock.turnDimAt") is not None:
             self.clock_turn_dim_at = safely_get_json_value(state, "clock.turnDimAt")
         if safely_get_json_value(state, "clock.turnBrightAt") is not None:
-            self.clock_turn_bright_at = safely_get_json_value(state, "clock.turnBrightAt")
+            self.clock_turn_bright_at = safely_get_json_value(
+                state, "clock.turnBrightAt"
+            )
 
         _LOGGER.debug(f"new state:{self}")
         self.publish_updates()
@@ -174,14 +178,27 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
                 names.append(f"{favorite['name']}-{favorite['id']}")
         return names
 
-    def set_clock(self, daytime_brightness: int|None = None, nighttime_brightness: int|None = None):
+    def set_clock(
+        self,
+        daytime_brightness: int | None = None,
+        nighttime_brightness: int | None = None,
+    ):
         if daytime_brightness is None:
             daytime_brightness = self.clock_daytime or 0
         if nighttime_brightness is None:
             nighttime_brightness = self.clock_nighttime or 0
-        _LOGGER.debug(f"Setting clock on: daytime={daytime_brightness} nighttime={nighttime_brightness}")
+        _LOGGER.debug(
+            f"Setting clock on: daytime={daytime_brightness} nighttime={nighttime_brightness}"
+        )
         self._update(
-            {"clock": {"flags": self.flags | RIOT_FLAGS_CLOCK_ON, "i": pack_dual_percentages(nighttime_brightness, daytime_brightness)}}
+            {
+                "clock": {
+                    "flags": self.flags | RIOT_FLAGS_CLOCK_ON,
+                    "i": pack_dual_percentages(
+                        nighttime_brightness, daytime_brightness
+                    ),
+                }
+            }
         )
 
     def turn_clock_off(self):
@@ -190,9 +207,7 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
         # Only re-send the packed brightness when both channels are known, so an
         # off call before the device has reported clock.i doesn't zero it out.
         if self.clock_nighttime is not None and self.clock_daytime is not None:
-            clock["i"] = pack_dual_percentages(
-                self.clock_nighttime, self.clock_daytime
-            )
+            clock["i"] = pack_dual_percentages(self.clock_nighttime, self.clock_daytime)
         self._update({"clock": clock})
 
     # favorite_name_id is expected to be a string of name-id since name alone isn't unique
@@ -201,11 +216,20 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
         fav_id = int(favorite_name_id.rsplit("-", 1)[1])
         self._update({"current": {"srId": fav_id, "step": 1, "playing": "routine"}})
 
-    def set_sound(self, sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None, duration: int = 0, until="indefinite"):
+    def set_sound(
+        self,
+        sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None,
+        duration: int = 0,
+        until="indefinite",
+    ):
         """
         Set a sound by passing SoundContent item from self.sounds, id, or title.
         """
-        if sound_or_id_or_title is None or sound_or_id_or_title == NO_SOUND_ID or sound_or_id_or_title == "none":
+        if (
+            sound_or_id_or_title is None
+            or sound_or_id_or_title == NO_SOUND_ID
+            or sound_or_id_or_title == "none"
+        ):
             self.turn_off()
             return
 
@@ -217,7 +241,12 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
             # Assume it's a SoundContent or SimpleSoundContent object
             sound = sound_or_id_or_title
 
-        if not sound or not isinstance(sound, dict) or not sound.get('id') or (not sound.get('wavUrl') and not sound.get('mp3Url')):
+        if (
+            not sound
+            or not isinstance(sound, dict)
+            or not sound.get("id")
+            or (not sound.get("wavUrl") and not sound.get("mp3Url"))
+        ):
             _LOGGER.error(f"Sound not found: {sound_or_id_or_title}")
             return
 
@@ -315,6 +344,7 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
                     }
                 }
             )
+
 
 def unpack_dual_percentages(packed_value: int) -> tuple[int, int]:
     """

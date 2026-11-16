@@ -484,18 +484,21 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
             enabled=False,
         )
 
-        self.assertEqual(updated, [
-            {
-                "id": 2,
-                "name": "Wake",
-                "active": True,
-                "enabled": False,
-                "type": "alarm",
-                "macAddress": "AA:BB:CC",
-                "startTime": "2026-05-08T07:30:00",
-                "endTime": "2026-05-08T08:00:00",
-            }
-        ])
+        self.assertEqual(
+            updated,
+            [
+                {
+                    "id": 2,
+                    "name": "Wake",
+                    "active": True,
+                    "enabled": False,
+                    "type": "alarm",
+                    "macAddress": "AA:BB:CC",
+                    "startTime": "2026-05-08T07:30:00",
+                    "endTime": "2026-05-08T08:00:00",
+                }
+            ],
+        )
         _, edit_url, _, edit_body = session.calls[0]
         self.assertTrue(edit_url.endswith("/service/app/routine/v2/editMultiple"))
         self.assertEqual(edit_body["type"], "alarm")
@@ -507,14 +510,19 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
 
         _, confirm_url, _, confirm_body = session.calls[1]
         self.assertTrue(confirm_url.endswith("/service/app/v2/dataVersion"))
-        self.assertEqual(confirm_body, {
-            "dataVersion": "version-1",
-            "macAddress": "AA:BB:CC",
-            "success": True,
-            "returnAllRoutines": True,
-        })
+        self.assertEqual(
+            confirm_body,
+            {
+                "dataVersion": "version-1",
+                "macAddress": "AA:BB:CC",
+                "success": True,
+                "returnAllRoutines": True,
+            },
+        )
 
-    async def test_alarm_wake_time_update_uses_edit_multiple_and_preserves_enabled(self):
+    async def test_alarm_wake_time_update_uses_edit_multiple_and_preserves_enabled(
+        self,
+    ):
         session = FakeSession()
         api = Hatch(client_session=session)
         alarm = {
@@ -537,18 +545,21 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
             wake_time=time(8, 15),
         )
 
-        self.assertEqual(updated, [
-            {
-                "id": 2,
-                "name": "Wake",
-                "active": True,
-                "enabled": False,
-                "type": "alarm",
-                "macAddress": "AA:BB:CC",
-                "startTime": "2026-05-08T07:45:00",
-                "endTime": "2026-05-08T08:15:00",
-            }
-        ])
+        self.assertEqual(
+            updated,
+            [
+                {
+                    "id": 2,
+                    "name": "Wake",
+                    "active": True,
+                    "enabled": False,
+                    "type": "alarm",
+                    "macAddress": "AA:BB:CC",
+                    "startTime": "2026-05-08T07:45:00",
+                    "endTime": "2026-05-08T08:15:00",
+                }
+            ],
+        )
         _, edit_url, _, edit_body = session.calls[0]
         self.assertTrue(edit_url.endswith("/service/app/routine/v2/editMultiple"))
         self.assertEqual(edit_body["type"], "alarm")
@@ -557,7 +568,9 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(edit_body["mrds"][0]["startTime"], "2026-05-08T07:45:00")
         self.assertEqual(edit_body["mrds"][0]["endTime"], "2026-05-08T08:15:00")
 
-    async def test_alarm_weekdays_update_uses_edit_multiple_and_confirms_data_version(self):
+    async def test_alarm_weekdays_update_uses_edit_multiple_and_confirms_data_version(
+        self,
+    ):
         session = FakeSession()
         api = Hatch(client_session=session)
         alarm = {
@@ -580,19 +593,22 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
             weekdays=["monday", "tuesday", "friday"],
         )
 
-        self.assertEqual(updated, [
-            {
-                "id": 2,
-                "name": "Wake",
-                "active": True,
-                "enabled": False,
-                "type": "alarm",
-                "macAddress": "AA:BB:CC",
-                "startTime": "2026-05-08T07:30:00",
-                "endTime": "2026-05-08T08:00:00",
-                "daysOfWeek": 38,
-            }
-        ])
+        self.assertEqual(
+            updated,
+            [
+                {
+                    "id": 2,
+                    "name": "Wake",
+                    "active": True,
+                    "enabled": False,
+                    "type": "alarm",
+                    "macAddress": "AA:BB:CC",
+                    "startTime": "2026-05-08T07:30:00",
+                    "endTime": "2026-05-08T08:00:00",
+                    "daysOfWeek": 38,
+                }
+            ],
+        )
         _, edit_url, _, edit_body = session.calls[0]
         self.assertTrue(edit_url.endswith("/service/app/routine/v2/editMultiple"))
         self.assertEqual(edit_body["type"], "alarm")
@@ -604,12 +620,15 @@ class HatchScheduledRoutineApiTest(unittest.IsolatedAsyncioTestCase):
 
         _, confirm_url, _, confirm_body = session.calls[1]
         self.assertTrue(confirm_url.endswith("/service/app/v2/dataVersion"))
-        self.assertEqual(confirm_body, {
-            "dataVersion": "version-1",
-            "macAddress": "AA:BB:CC",
-            "success": True,
-            "returnAllRoutines": True,
-        })
+        self.assertEqual(
+            confirm_body,
+            {
+                "dataVersion": "version-1",
+                "macAddress": "AA:BB:CC",
+                "success": True,
+                "returnAllRoutines": True,
+            },
+        )
 
 
 class ScheduledRoutineAlarmMixinTest(unittest.IsolatedAsyncioTestCase):
@@ -675,7 +694,6 @@ class ScheduledRoutineAlarmMixinTest(unittest.IsolatedAsyncioTestCase):
         updated_end = datetime.fromisoformat(updated_alarm["endTime"])
         self.assertGreater(updated_end, before_update)
         self.assertEqual((updated_end - updated_start).total_seconds(), 1800)
-
 
     async def test_set_alarm_weekdays_accepts_generator_input(self):
         api = EmptyAlarmUpdateApi()

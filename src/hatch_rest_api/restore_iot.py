@@ -148,7 +148,12 @@ class RestoreIot(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
     def set_clock(self, brightness: int = 0):
         _LOGGER.debug(f"Setting clock on: {brightness}")
         self._update(
-            {"clock": {"flags": self.flags | RIOT_FLAGS_CLOCK_ON, "i": convert_from_percentage(brightness)}}
+            {
+                "clock": {
+                    "flags": self.flags | RIOT_FLAGS_CLOCK_ON,
+                    "i": convert_from_percentage(brightness),
+                }
+            }
         )
 
     def turn_clock_off(self):

@@ -5,6 +5,7 @@ class SimpleSoundContent(TypedDict):
     """
     This is a partial type of only the fields used internally
     """
+
     id: int
     title: str
     wavUrl: str

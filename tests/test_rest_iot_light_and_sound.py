@@ -1,6 +1,11 @@
 import unittest
 
-from hatch_rest_api.const import CUSTOM_COLOR_ID, NO_COLOR_ID, NO_SOUND_ID, RIoTAudioTrack
+from hatch_rest_api.const import (
+    CUSTOM_COLOR_ID,
+    NO_COLOR_ID,
+    NO_SOUND_ID,
+    RIoTAudioTrack,
+)
 from hatch_rest_api.rest_iot import RestIot
 from hatch_rest_api.util import convert_from_hex, convert_from_percentage
 
@@ -14,7 +19,13 @@ def rest_iot(playing: str, light_on: bool, sound_on: bool) -> RestIot:
     device.current_playing = playing
     device.color_id = CUSTOM_COLOR_ID if light_on else NO_COLOR_ID
     device.sound_id = RIoTAudioTrack.BrownNoise.value if sound_on else NO_SOUND_ID
-    device.red, device.green, device.blue, device.white, device.brightness = 255, 0, 0, 0, 60
+    device.red, device.green, device.blue, device.white, device.brightness = (
+        255,
+        0,
+        0,
+        0,
+        60,
+    )
     return device
 
 
@@ -52,7 +63,9 @@ class TestLightAndSoundIndependent(unittest.TestCase):
     def test_stop_sound_with_no_light_turns_the_device_off(self):
         device = rest_iot("remote", light_on=False, sound_on=True)
         device.stop_sound()
-        self.assertEqual(device.sent, [{"current": {"srId": 0, "step": 0, "playing": "none"}}])
+        self.assertEqual(
+            device.sent, [{"current": {"srId": 0, "step": 0, "playing": "none"}}]
+        )
 
 
 if __name__ == "__main__":

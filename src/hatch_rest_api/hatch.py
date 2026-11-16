@@ -227,9 +227,7 @@ class Hatch:
         return await self._edit_and_confirm_alarm_routines(
             auth_token=auth_token,
             mac=mac,
-            mutable_scheduled_routines=[
-                alarm_weekdays_update_payload(alarm, weekdays)
-            ],
+            mutable_scheduled_routines=[alarm_weekdays_update_payload(alarm, weekdays)],
         )
 
     async def _edit_and_confirm_alarm_routines(

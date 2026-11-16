@@ -134,7 +134,9 @@ async def get_rest_devices(
     on_connection_resumed=None,
 ):
     loop = asyncio.get_running_loop()
-    aws_log_level = io.LogLevel.Debug if _LOGGER.isEnabledFor(logging.DEBUG) else io.LogLevel.NoLogs
+    aws_log_level = (
+        io.LogLevel.Debug if _LOGGER.isEnabledFor(logging.DEBUG) else io.LogLevel.NoLogs
+    )
     await loop.run_in_executor(None, io.set_log_level, aws_log_level)
     api = Hatch(client_session=client_session)
     contentful = Contentful(client_session=client_session)
@@ -308,7 +310,13 @@ async def get_rest_devices(
 async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
     mac_to_favorite = {}
     for device in iot_devices:
-        if device["product"] in ["riot", "riotPlus", "restBaby", "restoreV4", "restoreV5"]:
+        if device["product"] in [
+            "riot",
+            "riotPlus",
+            "restBaby",
+            "restoreV4",
+            "restoreV5",
+        ]:
             mac = device["macAddress"]
             favorites = await api.favorites(auth_token=token, mac=mac)
             _LOGGER.debug(f"Favorites for {mac}: {favorites}")
@@ -319,7 +327,13 @@ async def _get_favorites_for_all_v2_devices(api, token, iot_devices):
 async def _get_routines_for_all_v2_devices(api, token, iot_devices):
     mac_to_routines = {}
     for device in iot_devices:
-        if device["product"] in ["riot", "restBaby", "restoreIot", "restoreV4", "restoreV5"]:
+        if device["product"] in [
+            "riot",
+            "restBaby",
+            "restoreIot",
+            "restoreV4",
+            "restoreV5",
+        ]:
             mac = device["macAddress"]
             routines = await api.routines(auth_token=token, mac=mac)
             _LOGGER.debug(f"Routines for {mac}: {routines}")
@@ -341,9 +355,7 @@ async def _get_alarms_for_all_scheduled_routine_devices(api, token, iot_devices)
             except RateError:
                 raise
             except ClientError as e:
-                _LOGGER.warning(
-                    f"Could not fetch alarm routines for {mac}: {str(e)}"
-                )
+                _LOGGER.warning(f"Could not fetch alarm routines for {mac}: {str(e)}")
                 alarms = None
             _LOGGER.debug(f"Alarms for {mac}: {alarms}")
             mac_to_alarms[mac] = alarms

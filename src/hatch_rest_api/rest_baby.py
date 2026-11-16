@@ -52,7 +52,9 @@ class RestBaby(ShadowClientSubscriberMixin):
         if safely_get_json_value(state, "deviceInfo.b") is not None:
             self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
         if safely_get_json_value(state, "deviceInfo.powerStatus") is not None:
-            self.charging_status = safely_get_json_value(state, "deviceInfo.powerStatus", int)
+            self.charging_status = safely_get_json_value(
+                state, "deviceInfo.powerStatus", int
+            )
         if safely_get_json_value(state, "toddlerLockOn") is not None:
             self.toddler_lock = safely_get_json_value(state, "toddlerLockOn", bool)
         if safely_get_json_value(state, "toddlerLock.turnOnMode") is not None:
@@ -181,7 +183,9 @@ class RestBaby(ShadowClientSubscriberMixin):
     def turn_clock_off(self):
         _LOGGER.debug("Turn off clock")
         current_flags = self.flags if self.flags is not None else 0
-        self._update({"clock": {"flags": current_flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}})
+        self._update(
+            {"clock": {"flags": current_flags ^ RIOT_FLAGS_CLOCK_ON, "i": 655}}
+        )
 
     def set_toddler_lock(self, on: bool):
         """
@@ -207,28 +211,48 @@ class RestBaby(ShadowClientSubscriberMixin):
 
         sound_url_map = RestBabyAudioTrack.sound_url_map()
         # Update the map with any changes from the API (in case URLs have changed)
-        sound_url_map.update({
-            sound.get('id'): sound.get('wavUrl') for sound in self.sounds
-            if sound.get('id') and sound.get('wavUrl')
-        })
-        _LOGGER.debug(f'Available Sounds: {sound_url_map}')
+        sound_url_map.update(
+            {
+                sound.get("id"): sound.get("wavUrl")
+                for sound in self.sounds
+                if sound.get("id") and sound.get("wavUrl")
+            }
+        )
+        _LOGGER.debug(f"Available Sounds: {sound_url_map}")
 
         # Use provided volume or current volume
         volume_to_use = volume if volume is not None else self.volume
-        self._update({"current": {"playing": "remote", "step": 0, "sound": {
-                "id": audio_track.value,
-                "url": sound_url_map[audio_track.value],
-                "mute": False,
-                "until": "indefinite",
-                "duration": 0,
-                "v": convert_from_percentage(volume_to_use),
-            }}})
+        self._update(
+            {
+                "current": {
+                    "playing": "remote",
+                    "step": 0,
+                    "sound": {
+                        "id": audio_track.value,
+                        "url": sound_url_map[audio_track.value],
+                        "mute": False,
+                        "until": "indefinite",
+                        "duration": 0,
+                        "v": convert_from_percentage(volume_to_use),
+                    },
+                }
+            }
+        )
 
-    def set_sound(self, sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None, duration: int = 0, until="indefinite"):
+    def set_sound(
+        self,
+        sound_or_id_or_title: SoundContent | SimpleSoundContent | str | int | None,
+        duration: int = 0,
+        until="indefinite",
+    ):
         """
         Set a sound by passing SoundContent item from self.sounds, id, or title.
         """
-        if sound_or_id_or_title is None or sound_or_id_or_title == NO_SOUND_ID or sound_or_id_or_title == "none":
+        if (
+            sound_or_id_or_title is None
+            or sound_or_id_or_title == NO_SOUND_ID
+            or sound_or_id_or_title == "none"
+        ):
             self.turn_off()
             return
 
@@ -240,7 +264,12 @@ class RestBaby(ShadowClientSubscriberMixin):
             # Assume it's a SoundContent or SimpleSoundContent object
             sound = sound_or_id_or_title
 
-        if not sound or not isinstance(sound, dict) or not sound.get('id') or (not sound.get('wavUrl') and not sound.get('mp3Url')):
+        if (
+            not sound
+            or not isinstance(sound, dict)
+            or not sound.get("id")
+            or (not sound.get("wavUrl") and not sound.get("mp3Url"))
+        ):
             _LOGGER.error(f"Sound not found: {sound_or_id_or_title}")
             return
 
@@ -262,7 +291,10 @@ class RestBaby(ShadowClientSubscriberMixin):
             }
         )
 
-    def set_sound_url(self, sound_url: str = 'http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3'):
+    def set_sound_url(
+        self,
+        sound_url: str = "http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3",
+    ):
         """
         appears to work with some but not all public wav and mp3 urls
 
@@ -274,7 +306,13 @@ class RestBaby(ShadowClientSubscriberMixin):
                 "current": {
                     "playing": "remote",
                     "step": 0,
-                    "sound": {"mute": False, "url": sound_url, "v": convert_from_percentage(self.volume), "duration": 0, "until": "indefinite"},
+                    "sound": {
+                        "mute": False,
+                        "url": sound_url,
+                        "v": convert_from_percentage(self.volume),
+                        "duration": 0,
+                        "until": "indefinite",
+                    },
                 }
             }
         )

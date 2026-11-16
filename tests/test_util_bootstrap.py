@@ -98,8 +98,7 @@ class FakeNativeBinding:
     def __call__(self, *args):
         if len(args) != self.arity:
             raise TypeError(
-                f"function takes exactly {self.arity} arguments "
-                f"({len(args)} given)"
+                f"function takes exactly {self.arity} arguments ({len(args)} given)"
             )
         self.calls.append(args)
 
