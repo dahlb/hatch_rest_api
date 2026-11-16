@@ -56,9 +56,6 @@ dev = [
 
 [tool.ruff]
 target-version = "py312"
-exclude = [
-    "stub.py",
-]
 line-length = 100
 indent-width = 4
 fix = true
@@ -130,6 +127,10 @@ ignore = [
 fixable = ["ALL"]
 
 [tool.ruff.lint.per-file-ignores]
+"src/hatch_rest_api/live_smoke_test.py" = [
+    "E402", # Interactive script mutates sys.path before importing the local package.
+    "T201", # Interactive script intentionally prints inspected state.
+]
 "tests/*" = [
     "B017",    # Don't assert blind Exception
     "C90",     # mccabe, complexity
@@ -177,6 +178,7 @@ asyncio_mode = "auto"
 [tool.coverage.run]
 branch = true
 source = ["hatch_rest_api"]
+omit = ["src/hatch_rest_api/live_smoke_test.py"]
 relative_files = true
 parallel = false
 
