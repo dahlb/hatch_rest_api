@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hatch_rest_api"
-version = "1.35.0"
+version = "1.36.0"
 authors = [
   { name="Brendan Dahl", email="dahl.brendan@gmail.com" },
 ]
@@ -55,7 +55,7 @@ dev = [
 ]
 
 [tool.ruff]
-target-version = "py312"
+target-version = "1.36.0"
 line-length = 100
 indent-width = 4
 fix = true
