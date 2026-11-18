@@ -8,6 +8,7 @@ from .const import (
     NO_COLOR_ID,
     NO_SOUND_ID,
     RIOT_FLAGS_CLOCK_24_HOUR,
+    RIOT_FLAGS_CLOCK_IGNORE_TAP,
     RIOT_FLAGS_CLOCK_ON,
 )
 from .scheduled_routine import ScheduledRoutineAlarmMixin
@@ -226,6 +227,23 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
         if self.clock_nighttime is not None and self.clock_daytime is not None:
             clock["i"] = pack_dual_percentages(self.clock_nighttime, self.clock_daytime)
         self._update({"clock": clock})
+
+    @property
+    def is_clock_tap_on(self) -> bool | None:
+        """Whether tapping the device shows the clock, or None before flags are known."""
+        if self.flags is None:
+            return None
+        return not (self.flags & RIOT_FLAGS_CLOCK_IGNORE_TAP)
+
+    def clock_tap_on(self) -> None:
+        """Enable tap-to-show: a tap on the device shows the clock."""
+        _LOGGER.debug("Turn on clock tap to show")
+        self._update({"clock": {"flags": self.flags & ~RIOT_FLAGS_CLOCK_IGNORE_TAP}})
+
+    def clock_tap_off(self) -> None:
+        """Disable tap-to-show: the device ignores taps for showing the clock."""
+        _LOGGER.debug("Turn off clock tap to show")
+        self._update({"clock": {"flags": self.flags | RIOT_FLAGS_CLOCK_IGNORE_TAP}})
 
     def set_favorite(self, favorite_name_id: str) -> None:
         """Start a favorite routine.
