@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">144 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">144<span class="text"> run</span></button>
+            <span class="text">148 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">148<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a80fdfd69f989d0f_contentful_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-18 03:33 +0000
+            created at 2026-11-18 03:48 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -86,7 +86,7 @@
     <p class="pln"><span class="n"><a id="t2" href="#t2">2</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t3" href="#t3">3</a></span><span class="t"><span class="key">from</span> <span class="nam">enum</span> <span class="key">import</span> <span class="nam">Enum</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t4" href="#t4">4</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t5" href="#t5">5</a></span><span class="t"><span class="nam">VERSION</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="str">&quot;1.37.0&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t5" href="#t5">5</a></span><span class="t"><span class="nam">VERSION</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="str">&quot;1.38.0&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t6" href="#t6">6</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t7" href="#t7">7</a></span><span class="t"><span class="nam">SENSITIVE_FIELD_NAMES</span> <span class="op">=</span> <span class="op">[</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t">    <span class="str">&quot;username&quot;</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -396,6 +396,16 @@
     <p class="run"><span class="n"><a id="t312" href="#t312">312</a></span><span class="t"><span class="nam">RIOT_FLAGS_CLOCK_24_HOUR</span> <span class="op">=</span> <span class="num">1</span> <span class="op">&lt;&lt;</span> <span class="num">11</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t313" href="#t313">313</a></span><span class="t"><span class="nam">RIOT_FLAGS_CLOCK_ON</span> <span class="op">=</span> <span class="num">1</span> <span class="op">&lt;&lt;</span> <span class="num">15</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t314" href="#t314">314</a></span><span class="t"><span class="nam">RIOT_FLAGS_CLOCK_IGNORE_TAP</span> <span class="op">=</span> <span class="num">1</span> <span class="op">&lt;&lt;</span> <span class="num">5</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t315" href="#t315">315</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t316" href="#t316">316</a></span><span class="t"><span class="com"># RestoreV5 shadow clock.turnOffMode values.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t317" href="#t317">317</a></span><span class="t"><span class="nam">CLOCK_TURN_OFF_MODE_NEVER</span> <span class="op">=</span> <span class="str">&quot;never&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t318" href="#t318">318</a></span><span class="t"><span class="nam">CLOCK_TURN_OFF_MODE_CUSTOM</span> <span class="op">=</span> <span class="str">&quot;custom&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t319" href="#t319">319</a></span><span class="t"><span class="nam">CLOCK_TURN_OFF_MODE_ALWAYS</span> <span class="op">=</span> <span class="str">&quot;always&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t320" href="#t320">320</a></span><span class="t"><span class="nam">CLOCK_TURN_OFF_MODES</span> <span class="op">=</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t321" href="#t321">321</a></span><span class="t">    <span class="nam">CLOCK_TURN_OFF_MODE_NEVER</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t322" href="#t322">322</a></span><span class="t">    <span class="nam">CLOCK_TURN_OFF_MODE_CUSTOM</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t323" href="#t323">323</a></span><span class="t">    <span class="nam">CLOCK_TURN_OFF_MODE_ALWAYS</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t324" href="#t324">324</a></span><span class="t"><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -405,7 +415,7 @@
             <a class="nav" href="z_a80fdfd69f989d0f_contentful_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.3">coverage.py v7.17.3</a>,
-            created at 2026-11-18 03:33 +0000
+            created at 2026-11-18 03:48 +0000
         </p>
     </div>
 </footer>
