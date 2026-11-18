@@ -1,5 +1,6 @@
 """Hatch Restore 3 (V5) device."""
 
+from datetime import time
 import logging
 from typing import Any
 
@@ -251,6 +252,39 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
         else:
             flags = self.flags | RIOT_FLAGS_CLOCK_ON
         self._update({"clock": {"flags": flags, "turnOffMode": mode}})
+
+    def set_clock_turn_on_at(self, value: time) -> None:
+        """Set when the clock display turns on (and brightens) each day.
+
+        Writes both ``turnOnAt`` and ``turnBrightAt``, matching the single start
+        time shown in the Hatch app.
+
+        Args:
+            value: Local time of day the clock turns on.
+        """
+        self._set_clock_schedule_time(("turnOnAt", "turnBrightAt"), value)
+
+    def set_clock_turn_off_at(self, value: time) -> None:
+        """Set when the clock display turns off (and dims) each day.
+
+        Writes both ``turnOffAt`` and ``turnDimAt``, matching the single end
+        time shown in the Hatch app.
+
+        Args:
+            value: Local time of day the clock turns off.
+        """
+        self._set_clock_schedule_time(("turnOffAt", "turnDimAt"), value)
+
+    def _set_clock_schedule_time(self, shadow_keys: tuple[str, ...], value: time) -> None:
+        """Write one time of day to several clock schedule shadow keys.
+
+        Args:
+            shadow_keys: The ``clock`` shadow keys to write.
+            value: The time of day, sent as ``HH:MM:SS``.
+        """
+        time_str = value.strftime("%H:%M:%S")
+        _LOGGER.debug("Setting clock %s: %s", "/".join(shadow_keys), time_str)
+        self._update({"clock": dict.fromkeys(shadow_keys, time_str)})
 
     @property
     def is_clock_tap_on(self) -> bool | None:
