@@ -4,6 +4,8 @@ import logging
 from typing import Any
 
 from .const import (
+    CLOCK_TURN_OFF_MODE_ALWAYS,
+    CLOCK_TURN_OFF_MODES,
     CUSTOM_COLOR_ID,
     NO_COLOR_ID,
     NO_SOUND_ID,
@@ -227,6 +229,28 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
         if self.clock_nighttime is not None and self.clock_daytime is not None:
             clock["i"] = pack_dual_percentages(self.clock_nighttime, self.clock_daytime)
         self._update({"clock": clock})
+
+    def set_clock_turn_off_mode(self, mode: str) -> None:
+        """Set when the clock display turns off.
+
+        ``always`` also clears the clock-on flag; ``never`` and ``custom`` set it.
+
+        Args:
+            mode: One of ``CLOCK_TURN_OFF_MODES``: ``never`` (always on), ``custom``
+                (off at night, per the turn off/on times) or ``always`` (always off).
+
+        Raises:
+            ValueError: If ``mode`` is not a known turn-off mode.
+        """
+        if mode not in CLOCK_TURN_OFF_MODES:
+            msg = f"Unknown clock turn off mode: {mode!r}"
+            raise ValueError(msg)
+        _LOGGER.debug("Setting clock turn off mode: %s", mode)
+        if mode == CLOCK_TURN_OFF_MODE_ALWAYS:
+            flags = self.flags & ~RIOT_FLAGS_CLOCK_ON
+        else:
+            flags = self.flags | RIOT_FLAGS_CLOCK_ON
+        self._update({"clock": {"flags": flags, "turnOffMode": mode}})
 
     @property
     def is_clock_tap_on(self) -> bool | None:
