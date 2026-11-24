@@ -24,6 +24,7 @@ from .rest_baby import RestBaby
 from .rest_iot import RestIot
 from .rest_mini import RestMini
 from .rest_plus import RestPlus
+from .restore import Restore, fetch_restore_alarms
 from .restore_iot import RestoreIot
 from .restore_v4 import RestoreV4
 from .restore_v5 import RestoreV5
@@ -37,7 +38,7 @@ from .types import SimpleSoundContent
 
 _LOGGER = logging.getLogger(__name__)
 
-RestDevice = RestMini | RestPlus | RestIot | RestBaby | RestoreIot | RestoreV4 | RestoreV5
+RestDevice = RestMini | RestPlus | RestIot | RestBaby | Restore | RestoreIot | RestoreV4 | RestoreV5
 
 # Seconds to wait for the MQTT connection to establish before giving up.
 # Prevents thread pool workers from blocking indefinitely when the Hatch
@@ -169,6 +170,8 @@ async def get_rest_devices(
     favorites_map = await _get_favorites_for_all_v2_devices(api, token, iot_devices)
     routines_map = await _get_routines_for_all_v2_devices(api, token, iot_devices)
     alarms_map = await _get_alarms_for_all_scheduled_routine_devices(api, token, iot_devices)
+    restore_routines_map = await _probe_routines_for_restore_devices(api, token, iot_devices)
+    restore_alarms_map = await _fetch_alarms_for_restore_devices(api, token, iot_devices)
     sounds_map = await _get_sound_content_for_all_v2_devices(api, token, contentful, iot_devices)
     aws_http: AwsHttp = AwsHttp(api.api_session)
     aws_credentials = await aws_http.aws_credentials(
@@ -264,6 +267,23 @@ async def get_rest_devices(
                 favorites=favorites,
                 sounds=sounds_map[mac_address],
             )
+        if iot_device["product"] == "restore":
+            # Must stay explicit: an unmatched product falls through to
+            # RestMini below, which reads a shadow this model does not have.
+            restore = Restore(
+                device_name=iot_device["name"],
+                thing_name=iot_device["thingName"],
+                mac=mac_address,
+                shadow_client=shadow_client,
+                routines=restore_routines_map.get(mac_address),
+            )
+            restore_alarms, alarm_api_url = restore_alarms_map.get(mac_address) or (None, None)
+            # Configured even when the first fetch failed, so the periodic
+            # alarm refresh can try again.
+            restore.configure_alarm_api(
+                api=api, auth_token=token, alarms=restore_alarms, api_url=alarm_api_url
+            )
+            return restore
         if iot_device["product"] == "restoreIot":
             return _with_alarm_api(
                 RestoreIot(
@@ -361,6 +381,68 @@ async def _get_routines_for_all_v2_devices(
             _LOGGER.debug("Routines for %s: %s", mac, routines)
             mac_to_routines[mac] = routines
     return mac_to_routines
+
+
+async def _probe_routines_for_restore_devices(
+    api: Hatch, token: str, iot_devices: list[dict[str, Any]]
+) -> dict[str, list[dict[str, Any]] | None]:
+    """Fetch original Restores' routines, without letting a failure count.
+
+    Unlike the helpers for the other models, a failure here, rate limiting
+    included, is logged and skipped instead of failing setup.
+
+    Args:
+        api: Logged-in Hatch API client.
+        token: Hatch auth token.
+        iot_devices: The account's devices.
+
+    Returns:
+        The routines by MAC address, or None for a device whose fetch failed.
+    """
+    mac_to_routines: dict[str, list[dict[str, Any]] | None] = {}
+    for device in iot_devices:
+        if device["product"] != "restore":
+            continue
+        mac = device["macAddress"]
+        try:
+            routines: list[dict[str, Any]] | None = await api.routines(auth_token=token, mac=mac)
+        except (ClientError, KeyError, TypeError, AttributeError) as e:
+            # ClientError covers RateError and AuthError; the others come from
+            # an unexpected payload shape.
+            _LOGGER.debug("Could not fetch routines for restore %s: %r", mac, e)
+            routines = None
+        _LOGGER.debug("Routines for restore %s: %s", mac, routines)
+        mac_to_routines[mac] = routines
+    return mac_to_routines
+
+
+async def _fetch_alarms_for_restore_devices(
+    api: Hatch, token: str, iot_devices: list[dict[str, Any]]
+) -> dict[str, tuple[list[dict[str, Any]], str] | None]:
+    """Fetch original Restores' alarms; a failure is logged, not raised.
+
+    Args:
+        api: Logged-in Hatch API client.
+        token: Hatch auth token.
+        iot_devices: The account's devices.
+
+    Returns:
+        By MAC address: the alarms and the alarm API host that served them, or
+        None when the fetch failed, in which case the device comes up without
+        alarms.
+    """
+    mac_to_alarms: dict[str, tuple[list[dict[str, Any]], str] | None] = {}
+    for device in iot_devices:
+        if device["product"] != "restore":
+            continue
+        mac = device["macAddress"]
+        try:
+            mac_to_alarms[mac] = await fetch_restore_alarms(api, token, mac)
+        except (ClientError, KeyError, TypeError, ValueError) as e:
+            _LOGGER.debug("Could not fetch alarms for restore %s: %r", mac, e)
+            mac_to_alarms[mac] = None
+        _LOGGER.debug("Alarms for restore %s: %s", mac, mac_to_alarms[mac])
+    return mac_to_alarms
 
 
 async def _get_alarms_for_all_scheduled_routine_devices(

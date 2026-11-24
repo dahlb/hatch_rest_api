@@ -6,7 +6,7 @@ from typing import Any
 
 from aiohttp import ClientResponse
 
-from .util import clean_dictionary_for_logging
+from .util import clean_dictionary_for_logging, clean_for_logging
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,8 +32,7 @@ def request_with_logging(
         json_body = kwargs.get("json_body")
         if json_body is not None:
             request_message = (
-                request_message
-                + f"sending {url} request with {clean_dictionary_for_logging(json_body)}"
+                request_message + f"sending {url} request with {clean_for_logging(json_body)}"
             )
         _LOGGER.debug(request_message)
         response = await func(*args, **kwargs)

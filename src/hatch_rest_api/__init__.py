@@ -15,19 +15,20 @@ from .const import (
     TimeForBedTrack,
     TimeToRiseTrack,
 )
-from .errors import AuthError, BaseError, RateError
+from .errors import AuthError, BaseError, DeviceSyncError, RateError
 from .hatch import Hatch
 from .rest_baby import RestBaby
 from .rest_iot import RestIot
 from .rest_mini import RestMini
 from .rest_plus import RestPlus
+from .restore import Restore
 from .restore_iot import RestoreIot
 from .restore_v4 import RestoreV4
 from .restore_v5 import RestoreV5
 from .scheduled_routine import ScheduledRoutineAlarm
 from .util_bootstrap import get_rest_devices
 
-RestDevice = RestMini | RestPlus | RestIot | RestBaby | RestoreIot | RestoreV4 | RestoreV5
+RestDevice = RestMini | RestPlus | RestIot | RestBaby | Restore | RestoreIot | RestoreV4 | RestoreV5
 
 __all__ = [
     "REST_BABY_AUDIO_TRACKS",
@@ -39,6 +40,7 @@ __all__ = [
     "AuthError",
     "AwsHttp",
     "BaseError",
+    "DeviceSyncError",
     "Hatch",
     "RIoTAudioTrack",
     "RateError",
@@ -50,6 +52,7 @@ __all__ = [
     "RestMiniAudioTrack",
     "RestPlus",
     "RestPlusAudioTrack",
+    "Restore",
     "RestoreIot",
     "RestoreV4",
     "RestoreV5",

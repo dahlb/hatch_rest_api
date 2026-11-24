@@ -26,9 +26,9 @@ src/hatch_rest_api/
   callbacks.py                CallbacksMixin: state-change callback registration
   scheduled_routine.py        Alarm (scheduled routine) helpers and ScheduledRoutineAlarmMixin
   rest_mini.py, rest_plus.py, rest_iot.py, rest_baby.py,
-  restore_iot.py, restore_v4.py, restore_v5.py   One class per device family
+  restore.py, restore_iot.py, restore_v4.py, restore_v5.py   One class per device family
   const.py                    VERSION, audio track enums, color/sound sentinel IDs, product constants
-  errors.py                   BaseError, AuthError, RateError
+  errors.py                   BaseError, AuthError, RateError, DeviceSyncError
   util.py, util_http.py       Value conversion, safe JSON access, request logging/redaction
   live_smoke_test.py          Interactive script that hits the real Hatch APIs (not unit-tested)
 tests/                        pytest suite (no network access)
@@ -39,7 +39,7 @@ scripts/                      setup, lint, test, live_smoke_test helpers
 
 - `Hatch.iot_devices()` filters the account's devices to supported `product` strings, and
   `get_rest_devices()` in `util_bootstrap.py` maps each one to a device class (`restPlus`,
-  `riot`/`riotPlus`, `restBaby`, `restoreIot`, `restoreV4`, `restoreV5`; anything else
+  `riot`/`riotPlus`, `restBaby`, `restore`, `restoreIot`, `restoreV4`, `restoreV5`; anything else
   falls through to `RestMini`). Adding a device type means updating both places, plus an
   export in `__init__.py` and the `RestDevice` union.
 - Every device class subclasses `ShadowClientSubscriberMixin`. Subclasses implement

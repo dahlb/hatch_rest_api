@@ -13,3 +13,7 @@ class RateError(BaseError):
 
 class AuthError(BaseError):
     """Raised when the Hatch API rejects the supplied credentials."""
+
+
+class DeviceSyncError(BaseError):
+    """Raised when a device does not confirm a change it had to take over MQTT."""

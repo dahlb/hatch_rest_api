@@ -36,6 +36,25 @@ def clean_dictionary_for_logging(dictionary: Mapping[str, Any]) -> dict[str, Any
     return mutable_dictionary
 
 
+def clean_for_logging(value: Any) -> Any:
+    """Return ``value`` with sensitive values masked, for a dict, a list or anything else.
+
+    Request bodies are usually dicts, but some endpoints (the original Restore's
+    ``alarm/v1/update``) take a list.
+
+    Args:
+        value: Payload to sanitize.
+
+    Returns:
+        A sanitized copy for a dict or list; any other value unchanged.
+    """
+    if isinstance(value, Mapping):
+        return clean_dictionary_for_logging(value)
+    if isinstance(value, list):
+        return [clean_for_logging(item) for item in value]
+    return value
+
+
 def convert_from_percentage(percentage: int) -> int:
     """Convert a 0-100 percentage into the device's 16-bit IoT scale."""
     return round(percentage / 100.0 * MAX_IOT_VALUE) & 0xFFFF

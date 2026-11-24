@@ -8,9 +8,10 @@ from typing import Any
 import unittest
 from unittest.mock import MagicMock, patch
 
+from aiohttp import ClientError
 import pytest
 
-from hatch_rest_api import util_bootstrap
+from hatch_rest_api import RateError, RestMini, Restore, util_bootstrap
 
 
 class FakeHatch:
@@ -308,6 +309,150 @@ class GetRestDevicesNativeArityTest(unittest.TestCase):
             _run_bootstrap(connection=connection)
 
         assert connection.connect_calls == 2
+
+
+RESTORE_MAC = "11:22:33:44:55:66"
+
+
+class RestoreHatch(FakeHatch):
+    """A Hatch account holding one original Restore and one Rest Mini."""
+
+    def __init__(
+        self,
+        routines: list[dict[str, Any]] | None = None,
+        routines_error: Exception | None = None,
+        alarms: list[dict[str, Any]] | None = None,
+    ) -> None:
+        """Serve these routines and alarms, or fail the routines call with an error.
+
+        ``alarms=None`` makes every alarm fetch fail the way a host that does
+        not serve the alarm API does.
+        """
+        super().__init__()
+        self._routines = routines
+        self._routines_error = routines_error
+        self._alarms = alarms
+        self.routines_calls: list[str] = []
+        self.alarm_calls: list[tuple[str, str]] = []
+
+    async def iot_devices(self, **kwargs: Any) -> list[dict[str, str]]:
+        """Return an original Restore ahead of the Rest Mini."""
+        return [
+            {
+                "product": "restore",
+                "name": "Bedroom",
+                "thingName": "thing-restore",
+                "macAddress": RESTORE_MAC,
+            },
+            *await super().iot_devices(**kwargs),
+        ]
+
+    async def routines(self, auth_token: str, mac: str) -> list[dict[str, Any]] | None:
+        """Record the call; return the routines or raise the configured error."""
+        self.routines_calls.append(mac)
+        if self._routines_error is not None:
+            raise self._routines_error
+        return self._routines
+
+    async def restore_alarms(self, auth_token: str, mac: str, base_url: str) -> list[Any]:
+        """Record the call; return the alarms or fail like an unsupported host."""
+        self.alarm_calls.append((mac, base_url))
+        if self._alarms is None:
+            raise ClientError("Invalid response format from API (status: 404)")
+        return self._alarms
+
+
+def _bootstrap_devices(api: RestoreHatch) -> list[Any]:
+    """Run get_rest_devices against the prepared client ``api``; return its devices."""
+    with (
+        patch.object(util_bootstrap, "Hatch", lambda *a, **kw: api),
+        patch.object(util_bootstrap, "Contentful", MagicMock()),
+        patch.object(util_bootstrap, "AwsHttp", FakeAwsHttp),
+        patch.object(util_bootstrap, "AwsCredentialsProvider", MagicMock()),
+        patch.object(util_bootstrap, "io", MagicMock()),
+        patch.object(util_bootstrap, "IotShadowClient", lambda *a, **kw: FakeShadowClient()),
+        patch.object(util_bootstrap, "websockets_with_default_aws_signing", MagicMock()),
+    ):
+        _, _, devices, _ = asyncio.run(
+            util_bootstrap.get_rest_devices(email="user@example.com", password="hunter2")
+        )
+    return devices
+
+
+class GetRestDevicesRestoreTest(unittest.TestCase):
+    """The original Restore (product ``restore``) must not become a RestMini.
+
+    Any product create_rest_devices does not match falls through to RestMini,
+    whose shadow parser reads keys this model does not report.
+    """
+
+    def test_builds_a_restore(self) -> None:
+        """Builds a Restore for the product, and still a RestMini for the other device."""
+        restore, rest_mini = _bootstrap_devices(RestoreHatch(routines=[]))
+
+        assert isinstance(restore, Restore)
+        assert restore.device_name == "Bedroom"
+        assert restore.thing_name == "thing-restore"
+        assert restore.mac == RESTORE_MAC
+        assert isinstance(rest_mini, RestMini)
+
+    def test_probes_routines_for_the_restore_only(self) -> None:
+        """Fetches routines for the Restore only, and keeps them out of favorites."""
+        routines = [{"id": 7, "name": "Bedtime", "type": "routine"}]
+        api = RestoreHatch(routines=routines)
+
+        restore, _ = _bootstrap_devices(api)
+
+        assert api.routines_calls == [RESTORE_MAC]
+        assert restore.routines == routines
+        # Not treated as favorites: those become scenes that call set_favorite.
+        assert restore.favorites == []
+
+    def test_a_failed_routine_probe_does_not_fail_setup(self) -> None:
+        """A failed routine fetch, rate limit included, leaves routines unknown."""
+        for error in (
+            ClientError("api error:not supported"),
+            RateError("API rate limit exceeded."),
+            KeyError("payload"),
+        ):
+            with self.subTest(error=type(error).__name__):
+                restore, _ = _bootstrap_devices(RestoreHatch(routines_error=error))
+
+                assert isinstance(restore, Restore)
+                assert restore.routines is None
+
+
+class GetRestDevicesRestoreAlarmsTest(unittest.TestCase):
+    """The Restore gets the alarm API, with its alarms when they could be fetched."""
+
+    def test_configures_the_alarm_api_with_the_fetched_alarms(self) -> None:
+        """Configures the alarm API with the alarms and the host that served them."""
+        alarms = [{"id": 1, "active": True, "enabled": True, "time": "2026-01-05 07:00:00"}]
+        api = RestoreHatch(routines=[], alarms=alarms)
+
+        restore, rest_mini = _bootstrap_devices(api)
+
+        assert restore.alarm_capable
+        assert restore.restore_alarms_loaded
+        assert restore.restore_alarms == alarms
+        assert restore.alarm_api_url == "https://data.hatchbaby.com/"
+        assert [mac for mac, _ in api.alarm_calls] == [RESTORE_MAC]
+        assert not getattr(rest_mini, "alarm_capable", False)
+
+    def test_a_failed_alarm_fetch_still_configures_the_api(self) -> None:
+        """A failed fetch leaves no alarms loaded, but the API configured to retry."""
+        api = RestoreHatch(routines=[], alarms=None)
+
+        restore, _ = _bootstrap_devices(api)
+
+        # Both hosts tried, nothing loaded, refresh can try again later.
+        assert [url for _, url in api.alarm_calls] == [
+            "https://data.hatchbaby.com/",
+            "https://prod-sleep.hatchbaby.com/",
+        ]
+        assert restore.alarm_capable
+        assert not restore.restore_alarms_loaded
+        assert restore.restore_alarms == []
 
 
 if __name__ == "__main__":

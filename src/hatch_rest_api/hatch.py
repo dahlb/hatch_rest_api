@@ -23,6 +23,9 @@ from .util_http import request_with_logging
 _LOGGER = logging.getLogger(__name__)
 
 API_URL: str = "https://data.hatchbaby.com/"
+# The original Restore's alarms have their own API. The Hatch app calls it on
+# prod-sleep.hatchbaby.com; try the host the rest of this library uses first.
+RESTORE_ALARM_API_URLS: tuple[str, ...] = (API_URL, "https://prod-sleep.hatchbaby.com/")
 
 
 def request_with_logging_and_errors(
@@ -90,7 +93,7 @@ class Hatch:
     @request_with_logging_and_errors
     @request_with_logging
     async def _post_request_with_logging_and_errors_raised(
-        self, url: str, json_body: dict, auth_token: str | None = None
+        self, url: str, json_body: dict | list, auth_token: str | None = None
     ) -> ClientResponse:
         headers = {USER_AGENT: "hatch_rest_api"}
         if auth_token is not None:
@@ -147,6 +150,8 @@ class Hatch:
                 "riot",
                 "riotPlus",
                 "restBaby",
+                # The original Restore; "restoreIot" is the later first gen.
+                "restore",
                 "restoreIot",
                 "restoreV4",
                 "restoreV5",
@@ -372,6 +377,67 @@ class Hatch:
                 "success": success,
                 "returnAllRoutines": return_all_routines,
             },
+        )
+        response_json = await response.json()
+        return response_json["payload"]
+
+    async def restore_alarms(
+        self, auth_token: str, mac: str, base_url: str = API_URL
+    ) -> list[dict[str, Any]]:
+        """Fetch every alarm of an original Restore, deleted ones included.
+
+        Args:
+            auth_token: Hatch auth token.
+            mac: The device's MAC address.
+            base_url: Which alarm API host to call, see ``RESTORE_ALARM_API_URLS``.
+
+        Returns:
+            The alarms; a deleted one has ``"active": false``.
+        """
+        response: ClientResponse = await self._get_request_with_logging_and_errors_raised(
+            url=f"{base_url}service/app/alarm/v1/fetch/{mac}", auth_token=auth_token
+        )
+        response_json = await response.json()
+        return response_json["payload"]
+
+    async def create_restore_alarm(
+        self, auth_token: str, alarm: dict[str, Any], base_url: str = API_URL
+    ) -> list[dict[str, Any]]:
+        """Create an original Restore alarm.
+
+        Args:
+            auth_token: Hatch auth token.
+            alarm: The alarm to create, as the Hatch app sends it.
+            base_url: Which alarm API host to call, see ``RESTORE_ALARM_API_URLS``.
+
+        Returns:
+            The device's alarms, the new one still ``"active": false``.
+        """
+        response: ClientResponse = await self._post_request_with_logging_and_errors_raised(
+            url=f"{base_url}service/app/alarm/v1/create",
+            auth_token=auth_token,
+            json_body=alarm,
+        )
+        response_json = await response.json()
+        return response_json["payload"]
+
+    async def update_restore_alarms(
+        self, auth_token: str, alarms: list[dict[str, Any]], base_url: str = API_URL
+    ) -> list[dict[str, Any]]:
+        """Replace an original Restore's alarm list.
+
+        Args:
+            auth_token: Hatch auth token.
+            alarms: Every alarm; one sent with ``"active": false`` is deleted.
+            base_url: Which alarm API host to call, see ``RESTORE_ALARM_API_URLS``.
+
+        Returns:
+            The device's remaining alarms.
+        """
+        response: ClientResponse = await self._post_request_with_logging_and_errors_raised(
+            url=f"{base_url}service/app/alarm/v1/update",
+            auth_token=auth_token,
+            json_body=alarms,
         )
         response_json = await response.json()
         return response_json["payload"]
