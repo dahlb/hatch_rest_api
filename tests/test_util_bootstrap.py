@@ -1,11 +1,15 @@
+"""Tests for device discovery and MQTT connection setup."""
+
 import asyncio
+from collections.abc import Callable
 import sys
-import unittest
-from contextlib import ExitStack
 from types import SimpleNamespace
+from typing import Any
+import unittest
 from unittest.mock import MagicMock, patch
 
 from aiohttp import ClientError
+import pytest
 
 from hatch_rest_api import RateError, RestMini, Restore, util_bootstrap
 
@@ -13,13 +17,16 @@ from hatch_rest_api import RateError, RestMini, Restore, util_bootstrap
 class FakeHatch:
     """Stands in for the Hatch REST client, returning canned payloads."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Create a fake client with a mock session."""
         self.api_session = MagicMock()
 
-    async def login(self, **kwargs):
+    async def login(self, **kwargs: Any) -> str:
+        """Return a fixed auth token."""
         return "auth-token"
 
-    async def iot_devices(self, **kwargs):
+    async def iot_devices(self, **kwargs: Any) -> list[dict[str, str]]:
+        """Return a single Rest Mini."""
         return [
             {
                 "product": "restMini",
@@ -29,7 +36,8 @@ class FakeHatch:
             }
         ]
 
-    async def token(self, **kwargs):
+    async def token(self, **kwargs: Any) -> dict[str, str]:
+        """Return a fixed AWS IoT token payload."""
         return {
             "region": "us-east-1",
             "identityId": "identity-1",
@@ -39,10 +47,13 @@ class FakeHatch:
 
 
 class FakeAwsHttp:
-    def __init__(self, *args, **kwargs):
-        pass
+    """Stands in for the Cognito client, returning fixed credentials."""
 
-    async def aws_credentials(self, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Accept and ignore any constructor arguments."""
+
+    async def aws_credentials(self, **kwargs: Any) -> dict[str, dict[str, Any]]:
+        """Return fixed AWS credentials."""
         return {
             "Credentials": {
                 "AccessKeyId": "key",
@@ -60,7 +71,8 @@ class FakeShadowClient:
     publish_* returns a future whose .result() is a MagicMock.
     """
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Callable[..., Any]:
+        """Return a stub for any subscribe_* or publish_* method."""
         if name.startswith("subscribe_"):
             return lambda *args, **kwargs: (MagicMock(), MagicMock())
         return lambda *args, **kwargs: MagicMock()
@@ -73,12 +85,14 @@ class FlakyMqttConnection:
     future it returns, so the failure surfaces from ``future.result()``.
     """
 
-    def __init__(self, error, failures=1):
+    def __init__(self, error: BaseException, failures: int = 1) -> None:
+        """Fail the first ``failures`` connects with ``error``."""
         self.error = error
         self.remaining_failures = failures
         self.connect_calls = 0
 
-    def connect(self):
+    def connect(self) -> MagicMock:
+        """Return a connect future, failing it while failures remain."""
         self.connect_calls += 1
         future = MagicMock()
         if self.remaining_failures > 0:
@@ -94,20 +108,21 @@ class FakeNativeBinding:
     the way the native extension does.
     """
 
-    def __init__(self, arity):
+    def __init__(self, arity: int) -> None:
+        """Accept exactly ``arity`` positional arguments."""
         self.arity = arity
-        self.calls = []
+        self.calls: list[tuple[Any, ...]] = []
 
-    def __call__(self, *args):
+    def __call__(self, *args: Any) -> None:
+        """Record the call, or raise like the native extension on a count mismatch."""
         if len(args) != self.arity:
-            raise TypeError(
-                f"function takes exactly {self.arity} arguments "
-                f"({len(args)} given)"
-            )
+            raise TypeError(f"function takes exactly {self.arity} arguments ({len(args)} given)")
         self.calls.append(args)
 
 
-def _run_bootstrap(io_mock=None, connection=None):
+def _run_bootstrap(
+    io_mock: MagicMock | None = None, connection: Any = None
+) -> tuple[MagicMock, MagicMock]:
     """Run get_rest_devices with every network dependency faked.
 
     Returns the patched connection builder and the patched awscrt ``io`` module
@@ -119,80 +134,18 @@ def _run_bootstrap(io_mock=None, connection=None):
     if io_mock is None:
         io_mock = MagicMock()
 
-    with _patched_bootstrap(FakeHatch, io_mock, builder):
-        asyncio.run(
-            util_bootstrap.get_rest_devices(
-                email="user@example.com", password="hunter2"
-            )
-        )
+    with (
+        patch.object(util_bootstrap, "Hatch", FakeHatch),
+        patch.object(util_bootstrap, "Contentful", MagicMock()),
+        patch.object(util_bootstrap, "AwsHttp", FakeAwsHttp),
+        patch.object(util_bootstrap, "AwsCredentialsProvider", MagicMock()),
+        patch.object(util_bootstrap, "io", io_mock),
+        patch.object(util_bootstrap, "IotShadowClient", lambda *a, **kw: FakeShadowClient()),
+        patch.object(util_bootstrap, "websockets_with_default_aws_signing", builder),
+    ):
+        asyncio.run(util_bootstrap.get_rest_devices(email="user@example.com", password="hunter2"))
 
     return builder, io_mock
-
-
-def _patched_bootstrap(hatch, io_mock, builder) -> ExitStack:
-    """Patch every network dependency of get_rest_devices.
-
-    ``hatch`` replaces the Hatch REST client class; anything callable that
-    returns a client will do, so tests can hand in a prepared instance.
-    """
-    stack = ExitStack()
-    for name, replacement in (
-        ("Hatch", hatch),
-        ("Contentful", MagicMock()),
-        ("AwsHttp", FakeAwsHttp),
-        ("AwsCredentialsProvider", MagicMock()),
-        ("io", io_mock),
-        ("IotShadowClient", lambda *a, **kw: FakeShadowClient()),
-        ("websockets_with_default_aws_signing", builder),
-    ):
-        stack.enter_context(patch.object(util_bootstrap, name, replacement))
-    return stack
-
-
-def _bootstrap_devices(api):
-    """Run get_rest_devices against the prepared client ``api``; return its devices."""
-    with _patched_bootstrap(lambda *a, **kw: api, MagicMock(), MagicMock()):
-        _, _, devices, _ = asyncio.run(
-            util_bootstrap.get_rest_devices(
-                email="user@example.com", password="hunter2"
-            )
-        )
-    return devices
-
-
-class RestoreHatch(FakeHatch):
-    """A Hatch account holding one original Restore and one Rest Mini."""
-
-    def __init__(self, routines=None, routines_error=None, alarms=None):
-        super().__init__()
-        self._routines = routines
-        self._routines_error = routines_error
-        self._alarms = alarms
-        self.routines_calls = []
-        self.alarm_calls = []
-
-    async def iot_devices(self, **kwargs):
-        return [
-            {
-                "product": "restore",
-                "name": "Bedroom",
-                "thingName": "thing-restore",
-                "macAddress": "11:22:33:44:55:66",
-            },
-            *await super().iot_devices(**kwargs),
-        ]
-
-    async def routines(self, auth_token, mac):
-        self.routines_calls.append(mac)
-        if self._routines_error is not None:
-            raise self._routines_error
-        return self._routines
-
-    async def restore_alarms(self, auth_token, mac, base_url):
-        self.alarm_calls.append((mac, base_url))
-        if self._alarms is None:
-            raise ClientError("Invalid response format from API (status: 404)")
-        return self._alarms
 
 
 class GetRestDevicesClientBootstrapTest(unittest.TestCase):
@@ -206,25 +159,28 @@ class GetRestDevicesClientBootstrapTest(unittest.TestCase):
     refresh stranded another thread, pipe pair and set of CRT buffers.
     """
 
-    def test_uses_shared_static_bootstrap(self):
+    def test_uses_shared_static_bootstrap(self) -> None:
+        """Uses shared static bootstrap."""
         _, io_mock = _run_bootstrap()
 
         io_mock.ClientBootstrap.get_or_create_static_default.assert_called_once()
 
-    def test_does_not_build_per_connection_event_loop_group(self):
+    def test_does_not_build_per_connection_event_loop_group(self) -> None:
+        """Does not build per connection event loop group."""
         _, io_mock = _run_bootstrap()
 
         io_mock.EventLoopGroup.assert_not_called()
         io_mock.DefaultHostResolver.assert_not_called()
 
-    def test_reconnects_reuse_the_same_bootstrap(self):
+    def test_reconnects_reuse_the_same_bootstrap(self) -> None:
+        """Reconnects reuse the same bootstrap."""
         io_mock = MagicMock()
         builder_one, _ = _run_bootstrap(io_mock)
         builder_two, _ = _run_bootstrap(io_mock)
 
-        self.assertIs(
-            builder_one.call_args.kwargs["client_bootstrap"],
-            builder_two.call_args.kwargs["client_bootstrap"],
+        assert (
+            builder_one.call_args.kwargs["client_bootstrap"]
+            is builder_two.call_args.kwargs["client_bootstrap"]
         )
         io_mock.EventLoopGroup.assert_not_called()
 
@@ -244,21 +200,20 @@ class GetRestDevicesMetricsTest(unittest.TestCase):
     keep passing enable_metrics_collection=False so that path is never entered.
     """
 
-    def test_metrics_collection_disabled(self):
+    def test_metrics_collection_disabled(self) -> None:
+        """Metrics collection disabled."""
         builder, _ = _run_bootstrap()
 
         builder.assert_called_once()
-        self.assertIs(builder.call_args.kwargs["enable_metrics_collection"], False)
+        assert builder.call_args.kwargs["enable_metrics_collection"] is False
 
-    def test_devices_still_created(self):
+    def test_devices_still_created(self) -> None:
+        """Devices still created."""
         builder, _ = _run_bootstrap()
 
         # Sanity check that disabling metrics did not disturb the rest of the
         # bootstrap: the connection is still built and devices still returned.
-        self.assertEqual(
-            builder.call_args.kwargs["endpoint"],
-            "example-ats.iot.us-east-1.amazonaws.com",
-        )
+        assert builder.call_args.kwargs["endpoint"] == "example-ats.iot.us-east-1.amazonaws.com"
 
 
 class GetRestDevicesNativeArityTest(unittest.TestCase):
@@ -275,11 +230,12 @@ class GetRestDevicesNativeArityTest(unittest.TestCase):
     bootstrap reconciles the two halves once and retries.
     """
 
-    def _native(self, arity):
+    def _native(self, arity: int) -> tuple[SimpleNamespace, FakeNativeBinding]:
         binding = FakeNativeBinding(arity)
         return SimpleNamespace(mqtt_client_connection_connect=binding), binding
 
-    def test_trims_the_argument_the_extension_does_not_take(self):
+    def test_trims_the_argument_the_extension_does_not_take(self) -> None:
+        """Trims the argument the extension does not take."""
         native, binding = self._native(17)
         connection = FlakyMqttConnection(
             TypeError("function takes exactly 17 arguments (18 given)")
@@ -289,10 +245,11 @@ class GetRestDevicesNativeArityTest(unittest.TestCase):
             _run_bootstrap(connection=connection)
             native.mqtt_client_connection_connect(*range(18))
 
-        self.assertEqual(connection.connect_calls, 2)
-        self.assertEqual(binding.calls, [tuple(range(17))])
+        assert connection.connect_calls == 2
+        assert binding.calls == [tuple(range(17))]
 
-    def test_pads_the_argument_the_extension_expects(self):
+    def test_pads_the_argument_the_extension_expects(self) -> None:
+        """Pads the argument the extension expects."""
         native, binding = self._native(18)
         connection = FlakyMqttConnection(
             TypeError("function takes exactly 18 arguments (17 given)")
@@ -302,10 +259,11 @@ class GetRestDevicesNativeArityTest(unittest.TestCase):
             _run_bootstrap(connection=connection)
             native.mqtt_client_connection_connect(*range(17))
 
-        self.assertEqual(connection.connect_calls, 2)
-        self.assertEqual(binding.calls, [tuple(range(17)) + (None,)])
+        assert connection.connect_calls == 2
+        assert binding.calls == [(*tuple(range(17)), None)]
 
-    def test_leaves_unrelated_type_errors_alone(self):
+    def test_leaves_unrelated_type_errors_alone(self) -> None:
+        """Leaves unrelated type errors alone."""
         native, binding = self._native(17)
         connection = FlakyMqttConnection(
             TypeError("connect() got an unexpected keyword argument 'username'")
@@ -313,14 +271,14 @@ class GetRestDevicesNativeArityTest(unittest.TestCase):
 
         with (
             patch.dict(sys.modules, {"_awscrt": native}),
-            self.assertRaises(TypeError),
+            pytest.raises(TypeError),
         ):
             _run_bootstrap(connection=connection)
 
-        self.assertEqual(connection.connect_calls, 1)
-        self.assertIs(native.mqtt_client_connection_connect, binding)
+        assert connection.connect_calls == 1
+        assert native.mqtt_client_connection_connect is binding
 
-    def test_leaves_gaps_wider_than_one_argument_alone(self):
+    def test_leaves_gaps_wider_than_one_argument_alone(self) -> None:
         """Trimming a wider gap would feed the binding other parameters."""
         native, binding = self._native(15)
         connection = FlakyMqttConnection(
@@ -329,14 +287,15 @@ class GetRestDevicesNativeArityTest(unittest.TestCase):
 
         with (
             patch.dict(sys.modules, {"_awscrt": native}),
-            self.assertRaises(TypeError),
+            pytest.raises(TypeError),
         ):
             _run_bootstrap(connection=connection)
 
-        self.assertEqual(connection.connect_calls, 1)
-        self.assertIs(native.mqtt_client_connection_connect, binding)
+        assert connection.connect_calls == 1
+        assert native.mqtt_client_connection_connect is binding
 
-    def test_retries_only_once(self):
+    def test_retries_only_once(self) -> None:
+        """Retries only once."""
         native, _ = self._native(17)
         connection = FlakyMqttConnection(
             TypeError("function takes exactly 17 arguments (18 given)"),
@@ -345,11 +304,79 @@ class GetRestDevicesNativeArityTest(unittest.TestCase):
 
         with (
             patch.dict(sys.modules, {"_awscrt": native}),
-            self.assertRaises(TypeError),
+            pytest.raises(TypeError),
         ):
             _run_bootstrap(connection=connection)
 
-        self.assertEqual(connection.connect_calls, 2)
+        assert connection.connect_calls == 2
+
+
+RESTORE_MAC = "11:22:33:44:55:66"
+
+
+class RestoreHatch(FakeHatch):
+    """A Hatch account holding one original Restore and one Rest Mini."""
+
+    def __init__(
+        self,
+        routines: list[dict[str, Any]] | None = None,
+        routines_error: Exception | None = None,
+        alarms: list[dict[str, Any]] | None = None,
+    ) -> None:
+        """Serve these routines and alarms, or fail the routines call with an error.
+
+        ``alarms=None`` makes every alarm fetch fail the way a host that does
+        not serve the alarm API does.
+        """
+        super().__init__()
+        self._routines = routines
+        self._routines_error = routines_error
+        self._alarms = alarms
+        self.routines_calls: list[str] = []
+        self.alarm_calls: list[tuple[str, str]] = []
+
+    async def iot_devices(self, **kwargs: Any) -> list[dict[str, str]]:
+        """Return an original Restore ahead of the Rest Mini."""
+        return [
+            {
+                "product": "restore",
+                "name": "Bedroom",
+                "thingName": "thing-restore",
+                "macAddress": RESTORE_MAC,
+            },
+            *await super().iot_devices(**kwargs),
+        ]
+
+    async def routines(self, auth_token: str, mac: str) -> list[dict[str, Any]] | None:
+        """Record the call; return the routines or raise the configured error."""
+        self.routines_calls.append(mac)
+        if self._routines_error is not None:
+            raise self._routines_error
+        return self._routines
+
+    async def restore_alarms(self, auth_token: str, mac: str, base_url: str) -> list[Any]:
+        """Record the call; return the alarms or fail like an unsupported host."""
+        self.alarm_calls.append((mac, base_url))
+        if self._alarms is None:
+            raise ClientError("Invalid response format from API (status: 404)")
+        return self._alarms
+
+
+def _bootstrap_devices(api: RestoreHatch) -> list[Any]:
+    """Run get_rest_devices against the prepared client ``api``; return its devices."""
+    with (
+        patch.object(util_bootstrap, "Hatch", lambda *a, **kw: api),
+        patch.object(util_bootstrap, "Contentful", MagicMock()),
+        patch.object(util_bootstrap, "AwsHttp", FakeAwsHttp),
+        patch.object(util_bootstrap, "AwsCredentialsProvider", MagicMock()),
+        patch.object(util_bootstrap, "io", MagicMock()),
+        patch.object(util_bootstrap, "IotShadowClient", lambda *a, **kw: FakeShadowClient()),
+        patch.object(util_bootstrap, "websockets_with_default_aws_signing", MagicMock()),
+    ):
+        _, _, devices, _ = asyncio.run(
+            util_bootstrap.get_rest_devices(email="user@example.com", password="hunter2")
+        )
+    return devices
 
 
 class GetRestDevicesRestoreTest(unittest.TestCase):
@@ -359,27 +386,30 @@ class GetRestDevicesRestoreTest(unittest.TestCase):
     whose shadow parser reads keys this model does not report.
     """
 
-    def test_builds_a_restore(self):
+    def test_builds_a_restore(self) -> None:
+        """Builds a Restore for the product, and still a RestMini for the other device."""
         restore, rest_mini = _bootstrap_devices(RestoreHatch(routines=[]))
 
-        self.assertIsInstance(restore, Restore)
-        self.assertEqual(restore.device_name, "Bedroom")
-        self.assertEqual(restore.thing_name, "thing-restore")
-        self.assertEqual(restore.mac, "11:22:33:44:55:66")
-        self.assertIsInstance(rest_mini, RestMini)
+        assert isinstance(restore, Restore)
+        assert restore.device_name == "Bedroom"
+        assert restore.thing_name == "thing-restore"
+        assert restore.mac == RESTORE_MAC
+        assert isinstance(rest_mini, RestMini)
 
-    def test_probes_routines_for_the_restore_only(self):
+    def test_probes_routines_for_the_restore_only(self) -> None:
+        """Fetches routines for the Restore only, and keeps them out of favorites."""
         routines = [{"id": 7, "name": "Bedtime", "type": "routine"}]
         api = RestoreHatch(routines=routines)
 
         restore, _ = _bootstrap_devices(api)
 
-        self.assertEqual(api.routines_calls, ["11:22:33:44:55:66"])
-        self.assertEqual(restore.routines, routines)
+        assert api.routines_calls == [RESTORE_MAC]
+        assert restore.routines == routines
         # Not treated as favorites: those become scenes that call set_favorite.
-        self.assertEqual(restore.favorites, [])
+        assert restore.favorites == []
 
-    def test_a_failed_routine_probe_does_not_fail_setup(self):
+    def test_a_failed_routine_probe_does_not_fail_setup(self) -> None:
+        """A failed routine fetch, rate limit included, leaves routines unknown."""
         for error in (
             ClientError("api error:not supported"),
             RateError("API rate limit exceeded."),
@@ -388,31 +418,41 @@ class GetRestDevicesRestoreTest(unittest.TestCase):
             with self.subTest(error=type(error).__name__):
                 restore, _ = _bootstrap_devices(RestoreHatch(routines_error=error))
 
-                self.assertIsInstance(restore, Restore)
-                self.assertIsNone(restore.routines)
+                assert isinstance(restore, Restore)
+                assert restore.routines is None
 
 
 class GetRestDevicesRestoreAlarmsTest(unittest.TestCase):
-    def test_configures_the_alarm_api_with_the_fetched_alarms(self):
+    """The Restore gets the alarm API, with its alarms when they could be fetched."""
+
+    def test_configures_the_alarm_api_with_the_fetched_alarms(self) -> None:
+        """Configures the alarm API with the alarms and the host that served them."""
         alarms = [{"id": 1, "active": True, "enabled": True, "time": "2026-01-05 07:00:00"}]
         api = RestoreHatch(routines=[], alarms=alarms)
 
         restore, rest_mini = _bootstrap_devices(api)
 
-        self.assertTrue(restore.alarm_capable)
-        self.assertTrue(restore.restore_alarms_loaded)
-        self.assertEqual(restore.restore_alarms, alarms)
-        self.assertEqual(restore.alarm_api_url, "https://data.hatchbaby.com/")
-        self.assertEqual([mac for mac, _ in api.alarm_calls], ["11:22:33:44:55:66"])
-        self.assertFalse(getattr(rest_mini, "alarm_capable", False))
+        assert restore.alarm_capable
+        assert restore.restore_alarms_loaded
+        assert restore.restore_alarms == alarms
+        assert restore.alarm_api_url == "https://data.hatchbaby.com/"
+        assert [mac for mac, _ in api.alarm_calls] == [RESTORE_MAC]
+        assert not getattr(rest_mini, "alarm_capable", False)
 
-    def test_a_failed_alarm_fetch_still_configures_the_api(self):
-        restore, _ = _bootstrap_devices(RestoreHatch(routines=[], alarms=None))
+    def test_a_failed_alarm_fetch_still_configures_the_api(self) -> None:
+        """A failed fetch leaves no alarms loaded, but the API configured to retry."""
+        api = RestoreHatch(routines=[], alarms=None)
+
+        restore, _ = _bootstrap_devices(api)
 
         # Both hosts tried, nothing loaded, refresh can try again later.
-        self.assertTrue(restore.alarm_capable)
-        self.assertFalse(restore.restore_alarms_loaded)
-        self.assertEqual(restore.restore_alarms, [])
+        assert [url for _, url in api.alarm_calls] == [
+            "https://data.hatchbaby.com/",
+            "https://prod-sleep.hatchbaby.com/",
+        ]
+        assert restore.alarm_capable
+        assert not restore.restore_alarms_loaded
+        assert restore.restore_alarms == []
 
 
 if __name__ == "__main__":

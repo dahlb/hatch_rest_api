@@ -5,72 +5,107 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build:
+    if: github.event.repository.fork == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout the repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      - name: Gets semantic release info
+      - name: Get semantic release info
         id: semantic_release_info
-        uses: jossef/action-semantic-release-info@v3.0.0
+        uses: cycjimmy/semantic-release-action@v8
+        with:
+          dry_run: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update Version and Commit
-        if: ${{steps.semantic_release_info.outputs.version != ''}}
+      - name: Update Version in const.py
+        if: ${{steps.semantic_release_info.outputs.new_release_published == 'true'}}
+        env:
+          NEW_VERSION: ${{steps.semantic_release_info.outputs.new_release_version}}
         run: |
-          echo "Version: ${{steps.semantic_release_info.outputs.version}}"
-          sed -i "s/version = \".*\"/version = \"${{steps.semantic_release_info.outputs.version}}\"/g" pyproject.toml
-          git config --local user.email "dahl.brendan@gmail.com"
-          git config --local user.name "Brendan Dahl"
-          git add -A
-          git commit -m "chore: bumping version to ${{steps.semantic_release_info.outputs.version}}"
-          git tag ${{ steps.semantic_release_info.outputs.git_tag }}
+          echo "Version: $NEW_VERSION"
+          sed -i "s/^VERSION: str = \".*\"/VERSION: str = \"$NEW_VERSION\"/g" src/hatch_rest_api/const.py
 
-      - name: Push changes
-        if: ${{steps.semantic_release_info.outputs.version != ''}}
-        uses: ad-m/github-push-action@v1.3.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          tags: true
-          branch: ${{ github.ref }}
-
-      - name: Create GitHub Release
-        if: ${{steps.semantic_release_info.outputs.version != ''}}
-        uses: actions/create-release@v1
+      - name: Verify version updates
+        if: ${{steps.semantic_release_info.outputs.new_release_published == 'true'}}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.semantic_release_info.outputs.git_tag }}
-          release_name: ${{ steps.semantic_release_info.outputs.git_tag }}
-          body: ${{ steps.semantic_release_info.outputs.notes }}
-          draft: false
-          prerelease: false
+          NEW_VERSION: ${{steps.semantic_release_info.outputs.new_release_version}}
+        run: |
+          expected_version="$NEW_VERSION"
+          if ! grep -Fq "VERSION: str = \"$expected_version\"" src/hatch_rest_api/const.py; then
+            echo "Expected src/hatch_rest_api/const.py to contain VERSION: str = \"$expected_version\" after version update" >&2
+            exit 1
+          fi
 
-      - name: Set up Python 3.9
+      - name: Set up Python
+        if: ${{ steps.semantic_release_info.outputs.new_release_published == 'true' }}
         uses: actions/setup-python@v7
         with:
-          python-version: 3.9
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
 
-      - name: Install pypa/build
-        run: >-
-          python -m
-          pip install
-          build
-          --user
+      - name: Build package
+        if: ${{ steps.semantic_release_info.outputs.new_release_published == 'true' }}
+        uses: hynek/build-and-inspect-python-package@v3.0.2
 
-      - name: Build a binary wheel and a source tarball
-        run: >-
-          python -m
-          build
-          --sdist
-          --wheel
-          --outdir dist/
-          .
+      - name: Download built package
+        if: ${{ steps.semantic_release_info.outputs.new_release_published == 'true' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: Packages
+          path: dist
 
-      - name: Publish distribution 📦 to PyPI
-        if: ${{steps.semantic_release_info.outputs.version != ''}}
-        uses: pypa/gh-action-pypi-publish@master
+      - name: Publish distribution to PyPI
+        if: ${{ steps.semantic_release_info.outputs.new_release_published == 'true' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Update Version and Commit
+        if: ${{ steps.semantic_release_info.outputs.new_release_published == 'true' }}
+        env:
+          NEW_VERSION: ${{ steps.semantic_release_info.outputs.new_release_version }}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git diff
+          git add src/hatch_rest_api/const.py
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: bumping version to $NEW_VERSION [skip ci]"
+          fi
+
+      - name: Tag release
+        if: ${{ steps.semantic_release_info.outputs.new_release_published == 'true' }}
+        env:
+          NEW_GIT_TAG: ${{ steps.semantic_release_info.outputs.new_release_git_tag }}
+        run: |
+          if ! git rev-parse -q --verify "refs/tags/$NEW_GIT_TAG" >/dev/null; then
+            git tag "$NEW_GIT_TAG"
+          fi
+
+      - name: Push changes
+        if: ${{ steps.semantic_release_info.outputs.new_release_published == 'true' }}
+        uses: ad-m/github-push-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+          tags: true
+
+      - name: Create GitHub Release
+        if: ${{ steps.semantic_release_info.outputs.new_release_published == 'true' }}
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.semantic_release_info.outputs.new_release_git_tag }}
+          name: ${{ steps.semantic_release_info.outputs.new_release_git_tag }}
+          body: ${{ steps.semantic_release_info.outputs.new_release_notes }}
+          draft: false
+          prerelease: false

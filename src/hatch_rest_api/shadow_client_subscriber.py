@@ -1,18 +1,20 @@
+"""Base class for devices whose state is synced through an AWS IoT device shadow."""
+
 import logging
+from typing import Any
 
 from awscrt import mqtt
 from awsiot import iotshadow
 from awsiot.iotshadow import (
-    IotShadowClient,
     GetShadowResponse,
-    UpdateShadowResponse,
-    UpdateShadowRequest,
+    IotShadowClient,
     ShadowState,
+    UpdateShadowRequest,
+    UpdateShadowResponse,
 )
 
-from .types import SoundContent, SimpleSoundContent
-
 from .callbacks import CallbacksMixin
+from .types import SimpleSoundContent, SoundContent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,6 +24,12 @@ MQTT_TIMEOUT = 10
 
 
 class ShadowClientSubscriberMixin(CallbacksMixin):
+    """Device base class that mirrors an AWS IoT device shadow.
+
+    Subclasses implement ``_update_local_state`` to map the reported shadow state onto
+    their attributes, and call ``_update`` to request state changes.
+    """
+
     document_version: int = -1
 
     def __init__(
@@ -32,7 +40,17 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         shadow_client: IotShadowClient,
         favorites: list | None = None,
         sounds: list[SoundContent | SimpleSoundContent] | None = None,
-    ):
+    ) -> None:
+        """Subscribe to the device shadow and request its current state.
+
+        Args:
+            device_name: Display name of the device.
+            thing_name: AWS IoT thing name of the device.
+            mac: MAC address of the device.
+            shadow_client: Connected AWS IoT shadow client.
+            favorites: Favorites configured on the device, if any.
+            sounds: Sound content available to the device, if any.
+        """
         if favorites is None:
             favorites = []
         if sounds is None:
@@ -43,31 +61,30 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         self.shadow_client = shadow_client
         self.favorites = favorites
         self.sounds = sounds
-        self.sounds_by_id = {s['id']: s for s in sounds if s.get('id')}
-        self.sounds_by_name = {s['title']: s for s in sounds if s.get('title')}
+        self.sounds_by_id = {s["id"]: s for s in sounds if s.get("id")}
+        self.sounds_by_name = {s["title"]: s for s in sounds if s.get("title")}
         self._subscribed_topics: list[str] = []
-        _LOGGER.debug(f"creating {self.__class__.__name__}: {device_name}")
+        _LOGGER.debug("creating %s: %s", self.__class__.__name__, device_name)
 
-        def update_shadow_accepted(response: UpdateShadowResponse):
+        def update_shadow_accepted(response: UpdateShadowResponse) -> None:
             self._on_update_shadow_accepted(response)
 
         (
             update_accepted_subscribed_future,
             unsubscribe_topic_to_update_shadow_accepted,
         ) = shadow_client.subscribe_to_update_shadow_accepted(
-            request=iotshadow.UpdateShadowSubscriptionRequest(
-                thing_name=self.thing_name
-            ),
+            request=iotshadow.UpdateShadowSubscriptionRequest(thing_name=self.thing_name),
             qos=mqtt.QoS.AT_LEAST_ONCE,
             callback=update_shadow_accepted,
         )
         update_accepted_subscribed_future.result(timeout=MQTT_TIMEOUT)
         self._subscribed_topics.append(unsubscribe_topic_to_update_shadow_accepted)
         _LOGGER.debug(
-            f"unsubscribe_topic_to_update_shadow_accepted: {unsubscribe_topic_to_update_shadow_accepted}"
+            "unsubscribe_topic_to_update_shadow_accepted: %s",
+            unsubscribe_topic_to_update_shadow_accepted,
         )
 
-        def on_get_shadow_accepted(response: GetShadowResponse):
+        def on_get_shadow_accepted(response: GetShadowResponse) -> None:
             self._on_get_shadow_accepted(response)
 
         (
@@ -81,7 +98,8 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         get_accepted_subscribed_future.result(timeout=MQTT_TIMEOUT)
         self._subscribed_topics.append(unsubscribe_topic_to_get_shadow_accepted)
         _LOGGER.debug(
-            f"unsubscribe_topic_to_update_shadow_accepted: {unsubscribe_topic_to_get_shadow_accepted}"
+            "unsubscribe_topic_to_update_shadow_accepted: %s",
+            unsubscribe_topic_to_get_shadow_accepted,
         )
         self.refresh()
 
@@ -110,24 +128,28 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
             topic = self._subscribed_topics.pop()
             try:
                 self.shadow_client.unsubscribe(topic).result(timeout=MQTT_TIMEOUT)
-            except Exception as error:
+            except Exception as error:  # noqa: BLE001 - keep releasing the remaining topics
                 _LOGGER.warning(
-                    f"unsubscribing {self.device_name} from {topic} failed: {error}"
+                    "unsubscribing %s from %s failed: %s", self.device_name, topic, error
                 )
 
-    def _on_update_shadow_accepted(self, response: UpdateShadowResponse):
-        _LOGGER.debug(f"update {self.device_name}, RESPONSE: {response}")
+    def _on_update_shadow_accepted(self, response: UpdateShadowResponse) -> None:
+        _LOGGER.debug("update %s, RESPONSE: %s", self.device_name, response)
         if response.version < self.document_version:
-            _LOGGER.debug(f'ignoring update {self.device_name}, response version: {response.version} < document version: {self.document_version}')
+            _LOGGER.debug(
+                "ignoring update %s, response version: %s < document version: %s",
+                self.device_name,
+                response.version,
+                self.document_version,
+            )
             return
-        if response.state:
-            if response.state.reported:
-                _LOGGER.debug(f'updating {self.device_name} local state: {response.state.reported}')
-                self.document_version = response.version
-                self._update_local_state(response.state.reported)
+        if response.state and response.state.reported:
+            _LOGGER.debug("updating %s local state: %s", self.device_name, response.state.reported)
+            self.document_version = response.version
+            self._update_local_state(response.state.reported)
 
-    def _on_get_shadow_accepted(self, response: GetShadowResponse):
-        _LOGGER.debug(f"get {self.device_name}, RESPONSE: {response}")
+    def _on_get_shadow_accepted(self, response: GetShadowResponse) -> None:
+        _LOGGER.debug("get %s, RESPONSE: %s", self.device_name, response)
         if response.version < self.document_version:
             return
         if response.state:
@@ -138,24 +160,23 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
                 self.document_version = response.version
                 self._update_local_state(response.state.reported)
 
-    def _update(self, desired_state):
-        _LOGGER.debug(f"updating: {desired_state}")
+    def _update(self, desired_state: dict[str, Any]) -> None:
+        _LOGGER.debug("updating: %s", desired_state)
         request: UpdateShadowRequest = UpdateShadowRequest(
             thing_name=self.thing_name,
             state=ShadowState(
                 desired=desired_state,
             ),
         )
-        self.shadow_client.publish_update_shadow(
-            request, mqtt.QoS.AT_LEAST_ONCE
-        ).result(timeout=MQTT_TIMEOUT)
+        self.shadow_client.publish_update_shadow(request, mqtt.QoS.AT_LEAST_ONCE).result(
+            timeout=MQTT_TIMEOUT
+        )
 
-    def refresh(self):
+    def refresh(self) -> None:
+        """Request the current shadow state; the response arrives via the subscription."""
         _LOGGER.debug("Requesting current shadow state...")
         result = self.shadow_client.publish_get_shadow(
-            request=iotshadow.GetShadowRequest(
-                thing_name=self.thing_name, client_token=None
-            ),
+            request=iotshadow.GetShadowRequest(thing_name=self.thing_name, client_token=None),
             qos=mqtt.QoS.AT_LEAST_ONCE,
         ).result(timeout=MQTT_TIMEOUT)
-        _LOGGER.debug(f"result: {result}")
+        _LOGGER.debug("result: %s", result)

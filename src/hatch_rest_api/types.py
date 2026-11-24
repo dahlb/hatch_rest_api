@@ -1,20 +1,22 @@
-from typing import TypedDict, Any
+"""Typed dictionaries describing Hatch content payloads."""
+
+from typing import Any, TypedDict
 
 
 class SimpleSoundContent(TypedDict):
-    """
-    This is a partial type of only the fields used internally
-    """
+    """This is a partial type of only the fields used internally."""
+
     id: int
     title: str
     wavUrl: str
 
 
 class SoundContent(TypedDict):
-    """
+    """Full sound content payload returned by the Hatch API.
+
     No guarantees here, some display fields may be nullable.
     These types were inferred based off the free/included content
-    from a Rest Gen2 (riot) device
+    from a Rest Gen2 (riot) device.
     """
 
     id: int
@@ -30,15 +32,15 @@ class SoundContent(TypedDict):
     tier: str
     extent: str
     alarmOnly: bool
-    author: "Any | None"
-    narrator: "Any | None"
-    duration: "Any | None"
+    author: Any | None
+    narrator: Any | None
+    duration: Any | None
     imageUrl: str
-    mp3Url: "str | None"
-    wavUrl: "str | None"
+    mp3Url: str | None
+    wavUrl: str | None
     color: Any
-    series: "list[Any]"
-    products: "list[str]"
+    series: list[Any]
+    products: list[str]
     libraryVersion: int
     libraryVersionString: str
     url: str
@@ -46,16 +48,16 @@ class SoundContent(TypedDict):
     hatchId: int
     contentSource: str
     seriesSize: int
-    tagIds: "list"
-    altTagIds: "list"
-    mixIds: "list"
-    red: "Any | None"
-    green: "Any | None"
-    blue: "Any | None"
-    white: "Any | None"
+    tagIds: list
+    altTagIds: list
+    mixIds: list
+    red: Any | None
+    green: Any | None
+    blue: Any | None
+    white: Any | None
     sixCharacterColor: str
     rotateSeries: bool
-    contentfulId: "Any | None"
+    contentfulId: Any | None
     rotationType: str
     legacy: bool
     contentId: int

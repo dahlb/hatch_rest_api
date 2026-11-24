@@ -1,31 +1,26 @@
 [build-system]
-requires = [
-    "setuptools>=68.0.0",
-    "wheel",
-    "aiohttp>=3.9.3",
-    "awsiotsdk>=1.21.1"
-]
+requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "hatch_rest_api"
-version = "1.35.0"
+dynamic = ["version"]
 authors = [
   { name="Brendan Dahl", email="dahl.brendan@gmail.com" },
 ]
 description = "Hatch Rest mini Api Wrapper"
 readme = "README.md"
-requires-python = ">=3.12.0, <4"
+requires-python = ">=3.14.0, <4"
+license = "MIT"
 dependencies = [
     "aiohttp>=3.8.1",
     "awsiotsdk>=1.16.0"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: MacOS :: MacOS X",
 ]
 keywords = [
@@ -37,3 +32,182 @@ keywords = [
 [project.urls]
 "Homepage" = "https://github.com/dahlb/hatch_rest_api"
 "Bug Tracker" = "https://github.com/dahlb/hatch_rest_api/issues"
+
+[dependency-groups]
+lint = [
+    "mypy",
+    "prek",
+    "ruff",
+]
+pytest = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-timeout",
+]
+dev = [
+    { include-group = "lint" },
+    { include-group = "pytest" },
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "hatch_rest_api.const.VERSION" }
+
+[tool.mypy]
+python_version = "3.14"
+# Scoped to the library only, matching blueair_api: the test suite relies on
+# duck-typed fakes passed where device classes are expected, which doesn't
+# type-check without a disproportionate rewrite. mypy is not yet part of
+# scripts/lint or CI: the library still has existing type errors to fix first,
+# after which scripts/lint and a py.typed marker can follow carrier_api.
+files = ["src/hatch_rest_api"]
+mypy_path = "src"
+check_untyped_defs = true
+explicit_package_bases = true
+pretty = true
+show_error_codes = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "awscrt.*",
+    "awsiot.*",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+indent-width = 4
+fix = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN002",   # missing-type-args
+    "ANN003",   # missing-type-kwargs
+    "ANN401",   # any-type
+    "ARG",      # flake8-unused-arguments
+    "CPY001",	# flake8-copyright
+    "EM",       # flake8-errmsg
+    "ERA",      # eradicate
+    "FBT",      # flake8-boolean-trap
+    "PLC1901",  # {existing} can be simplified to {replacement} as an empty string is falsey; too many false positives
+    "PLR0904",  # Too many public methods
+    "PLR0911",  # Too many return statements ({returns} > {max_returns})
+    "PLR0912",  # Too many branches ({branches} > {max_branches})
+    "PLR0913",  # Too many arguments to function call ({c_args} > {max_args})
+    "PLR0914",  # Too many local variables
+    "PLR0915",  # Too many statements ({statements} > {max_statements})
+    "PLR0916",  # Too many Boolean expressions
+    "PLR0917",  # Too many positional arguments
+    "PLR1702",  # Too many nested blocks
+    "PLR2004",  # Magic value used in comparison, consider replacing {value} with a constant variable
+    "PLW2901",  # Outer {outer_kind} variable {name} overwritten by inner {inner_kind} target
+    "PT011",    # pytest.raises({exception}) is too broad, set the `match` parameter or use a more specific exception
+    "PT018",    # Assertion should be broken down into multiple parts
+    "RUF001",   # String contains ambiguous unicode character.
+    "RUF002",   # Docstring contains ambiguous unicode character.
+    "RUF003",   # Comment contains ambiguous unicode character.
+    "RUF015",   # Prefer next(...) over single element slice
+    "S311",     # suspicious-non-cryptographic-random-usage
+    "SIM103",   # Return the condition {condition} directly
+    "SIM108",   # Use ternary operator {contents} instead of if-else-block
+    "SIM115",   # Use context handler for opening files
+    "TC001",    # Move application import {} into a type-checking block
+    "TC002",    # Move third-party import {} into a type-checking block
+    "TC003",    # Move standard library import {} into a type-checking block
+    "TD003",    # missing-todo-link
+    "TRY003",   # Avoid specifying long messages outside the exception class
+    "TRY301",   # raise-within-try
+    "TRY400",   # Use `logging.exception` instead of `logging.error`
+
+    # May conflict with the formatter, https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+    "COM812",   # missing-trailing-comma
+    "COM819",   # prohibited-trailing-comma
+    "D206",     # docstring-tab-indentation
+    "D300",     # triple-single-quotes
+    "E111",     # indentation-with-invalid-multiple
+    "E114",     # indentation-with-invalid-multiple-comment
+    "E117",     # over-indented
+    "Q000",     # bad-quotes-inline-string
+    "Q001",     # bad-quotes-multiline-string
+    "Q002",     # bad-quotes-docstring
+    "Q003",     # avoidable-escaped-quote
+    "Q004",     # unnecessary-escaped-quote
+    "W191",     # tab-indentation
+]
+fixable = ["ALL"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/hatch_rest_api/live_smoke_test.py" = [
+    "E402", # Interactive script mutates sys.path before importing the local package.
+    "T201", # Interactive script intentionally prints inspected state.
+]
+"tests/*" = [
+    "B017",    # Don't assert blind Exception
+    "C90",     # mccabe, complexity
+    "DTZ001",  # Alarm times are device-local naive datetimes
+    "DTZ005",  # Alarm times are device-local naive datetimes
+    "E501",    # line too long
+    "S101",    # Use of assert detected
+    "S105",    # Possible hardcoded password
+    "S106",    # Possible hardcoded password assigned to argument
+    "S108",    # hardcoded-temp-file
+    "SLF001",  # Private member accessed
+]
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-sort-within-sections = true
+known-first-party = ["hatch_rest_api"]
+split-on-trailing-comma = false
+
+[tool.ruff.lint.mccabe]
+max-complexity = 25
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.codespell]
+ignore-words-list = "hass,ba,fo"
+
+[tool.pytest.ini_options]
+addopts = """
+  --quiet
+  --timeout=20
+  --durations=10
+  -o console_output_style=progress
+  --cov=hatch_rest_api
+  --cov-report=term-missing
+  --cov-report=html
+"""
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+branch = true
+source = ["hatch_rest_api"]
+omit = ["src/hatch_rest_api/live_smoke_test.py"]
+relative_files = true
+parallel = false
+
+[tool.coverage.report]
+show_missing = true
