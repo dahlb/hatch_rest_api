@@ -5,45 +5,30 @@ import logging
 from typing import Any
 
 from .const import RestBabyAudioTrack
-from .iot_device import IotSoundDevice
-from .util import convert_from_percentage, convert_to_percentage, safely_get_json_value
+from .iot_device import IotRestDevice
+from .util import convert_from_percentage, safely_get_json_value
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class RestBaby(IotSoundDevice):
+class RestBaby(IotRestDevice):
     """Hatch Rest Baby sound machine and night light."""
 
     audio_track: RestBabyAudioTrack | None = None
 
-    current_id: int = 0
-    current_step: int = 0
-    battery_level: int | None = None
-    charging_status: int | None = (
-        None  # Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base
-    )
-    clock: int | None = None
-    toddler_lock: bool = False
-    toddler_lock_mode: str | None = None
-
     def _update_device_state(self, state: dict[str, Any]) -> None:
-        if safely_get_json_value(state, "deviceInfo.b") is not None:
-            self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
-        if safely_get_json_value(state, "deviceInfo.powerStatus") is not None:
-            self.charging_status = safely_get_json_value(state, "deviceInfo.powerStatus", int)
-        if safely_get_json_value(state, "toddlerLockOn") is not None:
-            self.toddler_lock = safely_get_json_value(state, "toddlerLockOn", bool)
-        if safely_get_json_value(state, "toddlerLock.turnOnMode") is not None:
-            self.toddler_lock_mode = safely_get_json_value(state, "toddlerLock.turnOnMode", str)
-        if safely_get_json_value(state, "current.srId") is not None:
-            self.current_id = safely_get_json_value(state, "current.srId")
-        if safely_get_json_value(state, "current.step") is not None:
-            self.current_step = safely_get_json_value(state, "current.step")
+        super()._update_device_state(state)
         if safely_get_json_value(state, "current.sound.id", int) is not None:
             with contextlib.suppress(ValueError):
                 self.audio_track = RestBabyAudioTrack(self.sound_id)
-        if safely_get_json_value(state, "clock.i") is not None:
-            self.clock = convert_to_percentage(safely_get_json_value(state, "clock.i", int))
+
+    def _sound_url_command_extras(self) -> tuple[dict[str, Any], dict[str, Any]]:
+        # RestBaby plays from step 0 and needs the volume with every sound.
+        return {"step": 0}, {
+            "v": convert_from_percentage(self.volume),
+            "duration": 0,
+            "until": "indefinite",
+        }
 
     def _sound_command_extras(self) -> tuple[dict[str, Any], dict[str, Any]]:
         # RestBaby plays from step 0 and needs the volume with every sound.
@@ -78,15 +63,6 @@ class RestBaby(IotSoundDevice):
             "toddler_lock": self.toddler_lock,
             "toddler_lock_mode": self.toddler_lock_mode,
         }
-
-    def set_toddler_lock(self, on: bool) -> None:
-        """Turn the toddler lock on (mode ``always``) or off (mode ``never``).
-
-        The API also supports a ``custom`` mode for a time range, which is not exposed here.
-        """
-        _LOGGER.debug("Setting Toddler Lock: %s", on)
-        mode = "always" if on else "never"
-        self._update({"toddlerLock": {"turnOnMode": mode}})
 
     def set_audio_track(self, audio_track: RestBabyAudioTrack, volume: int | None = None) -> None:
         """Play ``audio_track``, or turn off for ``RestBabyAudioTrack.NONE``.
@@ -125,31 +101,6 @@ class RestBaby(IotSoundDevice):
                         "until": "indefinite",
                         "duration": 0,
                         "v": convert_from_percentage(volume_to_use),
-                    },
-                }
-            }
-        )
-
-    def set_sound_url(
-        self,
-        sound_url: str = "http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3",
-    ) -> None:
-        """Appears to work with some but not all public wav and mp3 urls.
-
-        i.e. http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3
-        """
-        _LOGGER.debug("Setting sound URL: %s", sound_url)
-        self._update(
-            {
-                "current": {
-                    "playing": "remote",
-                    "step": 0,
-                    "sound": {
-                        "mute": False,
-                        "url": sound_url,
-                        "v": convert_from_percentage(self.volume),
-                        "duration": 0,
-                        "until": "indefinite",
                     },
                 }
             }

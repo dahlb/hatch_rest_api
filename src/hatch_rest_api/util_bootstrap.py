@@ -167,7 +167,6 @@ async def get_rest_devices(
     aws_log_level = io.LogLevel.Debug if _LOGGER.isEnabledFor(logging.DEBUG) else io.LogLevel.NoLogs
     await loop.run_in_executor(None, io.set_log_level, aws_log_level)
     api = Hatch(client_session=client_session, rate_limit_retries=rate_limit_retries)
-    contentful = Contentful(client_session=client_session, rate_limit_retries=rate_limit_retries)
     token = await api.login(email=email, password=password)
     iot_devices = await api.iot_devices(auth_token=token)
     if len(iot_devices) == 0:
@@ -178,7 +177,16 @@ async def get_rest_devices(
     alarms_map = await _get_alarms_for_all_scheduled_routine_devices(api, token, iot_devices)
     restore_routines_map = await _probe_routines_for_restore_devices(api, token, iot_devices)
     restore_alarms_map = await _fetch_alarms_for_restore_devices(api, token, iot_devices)
-    sounds_map = await _get_sound_content_for_all_v2_devices(api, token, contentful, iot_devices)
+    # Without a caller's session, Contentful opens its own; nothing else uses it, so
+    # close it here instead of leaking one per call (callers reconnect hourly).
+    contentful = Contentful(client_session=client_session, rate_limit_retries=rate_limit_retries)
+    try:
+        sounds_map = await _get_sound_content_for_all_v2_devices(
+            api, token, contentful, iot_devices
+        )
+    finally:
+        if client_session is None:
+            await contentful.cleanup_client_session()
     aws_http: AwsHttp = AwsHttp(api.api_session)
     aws_credentials = await aws_http.aws_credentials(
         region=aws_token["region"],

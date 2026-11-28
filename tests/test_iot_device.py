@@ -12,7 +12,7 @@ import itertools
 import pytest
 
 from hatch_rest_api import RestBaby, RestIot, RestoreIot, RestoreV4, RestoreV5
-from hatch_rest_api.iot_device import IotDevice, IotSoundDevice
+from hatch_rest_api.iot_device import Clock24HourMixin, IotDevice, IotRestDevice, IotSoundDevice
 
 CLASSES = [RestIot, RestBaby, RestoreIot, RestoreV5]
 
@@ -63,5 +63,22 @@ def test_set_sound_only_where_it_was() -> None:
     assert [cls.__name__ for cls in CLASSES if issubclass(cls, IotSoundDevice)] == [
         "RestIot",
         "RestBaby",
+        "RestoreV5",
+    ]
+
+
+def test_rest_family_base_only_for_the_rests() -> None:
+    """IotRestDevice is used by exactly RestIot and RestBaby."""
+    assert [cls.__name__ for cls in CLASSES if issubclass(cls, IotRestDevice)] == [
+        "RestIot",
+        "RestBaby",
+    ]
+
+
+def test_24_hour_clock_only_where_it_was() -> None:
+    """Clock24HourMixin is used by exactly the classes that had is_clock_24h."""
+    assert [cls.__name__ for cls in CLASSES if issubclass(cls, Clock24HourMixin)] == [
+        "RestIot",
+        "RestoreIot",
         "RestoreV5",
     ]

@@ -3,15 +3,14 @@
 import logging
 from typing import Any
 
-from .const import RIOT_FLAGS_CLOCK_24_HOUR
-from .iot_device import IotDevice
+from .iot_device import Clock24HourMixin, IotDevice
 from .scheduled_routine import ScheduledRoutineAlarmMixin
 from .util import convert_to_percentage, safely_get_json_value
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class RestoreIot(ScheduledRoutineAlarmMixin, IotDevice):
+class RestoreIot(ScheduledRoutineAlarmMixin, Clock24HourMixin, IotDevice):
     """Hatch Restore (1st gen) sunrise alarm, sound machine and light."""
 
     _scale_white = True
@@ -50,8 +49,3 @@ class RestoreIot(ScheduledRoutineAlarmMixin, IotDevice):
             "is_clock_on": self.is_clock_on,
             "is_clock_24h": self.is_clock_24h,
         }
-
-    @property
-    def is_clock_24h(self) -> bool:
-        """Whether the clock displays 24-hour time."""
-        return self.flags is not None and bool(self.flags & RIOT_FLAGS_CLOCK_24_HOUR)
