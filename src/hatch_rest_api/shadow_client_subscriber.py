@@ -1,5 +1,10 @@
 """Base class for devices whose state is synced through an AWS IoT device shadow."""
 
+import asyncio
+from collections.abc import Callable
+from concurrent.futures import Future
+from contextvars import ContextVar
+import inspect
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -21,6 +26,14 @@ _LOGGER = logging.getLogger(__name__)
 # Seconds to wait for MQTT operations before giving up. Prevents thread pool
 # workers from blocking indefinitely when the connection is down.
 MQTT_TIMEOUT = 10
+
+# While async_command runs a command, the shadow updates it sends are collected
+# here instead of being published (and waited on) synchronously. A ContextVar,
+# so a synchronous command running at the same time in another thread, or in
+# another task, publishes as usual.
+_captured_updates: ContextVar[list[dict[str, Any]] | None] = ContextVar(
+    "hatch_rest_api_captured_updates", default=None
+)
 
 
 class ShadowClientSubscriberMixin(CallbacksMixin):
@@ -159,6 +172,21 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
                     "unsubscribing %s from %s failed: %s", self.device_name, topic, error
                 )
 
+    async def async_unsubscribe(self) -> None:
+        """Drop the shadow subscriptions this device registered, without blocking.
+
+        The async counterpart of ``unsubscribe``; see it for why callers that
+        rebuild the connection must call one of them first.
+        """
+        while self._subscribed_topics:
+            topic = self._subscribed_topics.pop()
+            try:
+                await _await_mqtt(self.shadow_client.unsubscribe(topic))
+            except Exception as error:  # noqa: BLE001 - keep releasing the remaining topics
+                _LOGGER.warning(
+                    "unsubscribing %s from %s failed: %s", self.device_name, topic, error
+                )
+
     def _on_update_shadow_accepted(self, response: UpdateShadowResponse) -> None:
         _LOGGER.debug("update %s, RESPONSE: %s", self.device_name, response)
         if response.version < self.document_version:
@@ -187,6 +215,14 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
                 self._update_local_state(response.state.reported)
 
     def _update(self, desired_state: dict[str, Any]) -> None:
+        captured = _captured_updates.get()
+        if captured is not None:
+            # Inside async_command, which publishes these without blocking.
+            captured.append(desired_state)
+            return
+        self._publish_update(desired_state).result(timeout=MQTT_TIMEOUT)
+
+    def _publish_update(self, desired_state: dict[str, Any]) -> Future[Any]:
         _LOGGER.debug("updating: %s", desired_state)
         request: UpdateShadowRequest = UpdateShadowRequest(
             thing_name=self.thing_name,
@@ -194,15 +230,67 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
                 desired=desired_state,
             ),
         )
-        self.shadow_client.publish_update_shadow(request, mqtt.QoS.AT_LEAST_ONCE).result(
-            timeout=MQTT_TIMEOUT
+        future: Future[Any] = self.shadow_client.publish_update_shadow(
+            request, mqtt.QoS.AT_LEAST_ONCE
         )
+        return future
+
+    async def async_command[**P](
+        self, command: Callable[P, object], /, *args: P.args, **kwargs: P.kwargs
+    ) -> None:
+        """Run one of this device's commands without blocking the event loop.
+
+        Device commands such as ``set_volume`` wait up to ``MQTT_TIMEOUT`` seconds
+        for MQTT to acknowledge the shadow update, so async code otherwise has to
+        run them in a thread. This runs the command's own logic, then publishes
+        the updates it would have sent and awaits each acknowledgement::
+
+            await device.async_command(device.set_volume, 30)
+
+        Args:
+            command: A command method of this device, e.g. ``device.set_volume``.
+            *args: Positional arguments for the command.
+            **kwargs: Keyword arguments for the command.
+
+        Raises:
+            ValueError: ``command`` is not a method of this device.
+            TypeError: ``command`` is already a coroutine function; await it directly.
+            TimeoutError: MQTT did not acknowledge an update within ``MQTT_TIMEOUT``.
+        """
+        if getattr(command, "__self__", None) is not self:
+            raise ValueError("async_command needs a command method of this device")
+        if inspect.iscoroutinefunction(command):
+            raise TypeError(f"{command.__name__} is already async; await it directly")
+        captured: list[dict[str, Any]] = []
+        token = _captured_updates.set(captured)
+        try:
+            command(*args, **kwargs)
+        finally:
+            _captured_updates.reset(token)
+        for desired_state in captured:
+            await _await_mqtt(self._publish_update(desired_state))
 
     def refresh(self) -> None:
         """Request the current shadow state; the response arrives via the subscription."""
         _LOGGER.debug("Requesting current shadow state...")
-        result = self.shadow_client.publish_get_shadow(
+        result = self._publish_get_shadow().result(timeout=MQTT_TIMEOUT)
+        _LOGGER.debug("result: %s", result)
+
+    async def async_refresh(self) -> None:
+        """Request the current shadow state without blocking the event loop."""
+        _LOGGER.debug("Requesting current shadow state...")
+        result = await _await_mqtt(self._publish_get_shadow())
+        _LOGGER.debug("result: %s", result)
+
+    def _publish_get_shadow(self) -> Future[Any]:
+        future: Future[Any] = self.shadow_client.publish_get_shadow(
             request=iotshadow.GetShadowRequest(thing_name=self.thing_name, client_token=None),
             qos=mqtt.QoS.AT_LEAST_ONCE,
-        ).result(timeout=MQTT_TIMEOUT)
-        _LOGGER.debug("result: %s", result)
+        )
+        return future
+
+
+async def _await_mqtt(future: Future[Any]) -> Any:
+    """Await an awscrt/awsiot future, giving up after ``MQTT_TIMEOUT`` seconds."""
+    async with asyncio.timeout(MQTT_TIMEOUT):
+        return await asyncio.wrap_future(future)
