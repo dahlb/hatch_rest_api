@@ -26,8 +26,8 @@ _LOGGER = logging.getLogger(__name__)
 class RestoreIot(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
     """Hatch Restore (1st gen) sunrise alarm, sound machine and light."""
 
-    audio_track: str = None
-    firmware_version: str = None
+    audio_track: str | None = None
+    firmware_version: str | None = None
     volume: int = 0
 
     is_online: bool = False
@@ -40,7 +40,7 @@ class RestoreIot(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
     blue: int = 0
     white: int = 0
     brightness: int = 0
-    charging_status: int = (
+    charging_status: int | None = (
         None  # Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base
     )
     clock: int = 0
@@ -83,7 +83,7 @@ class RestoreIot(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
         _LOGGER.debug("new state:%s", self)
         self.publish_updates()
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> dict[str, Any]:  # type: ignore[override]  # ha_hatch diagnostics read this dict
         """Return the device state as a dictionary for debugging."""
         return {
             "device_name": self.device_name,

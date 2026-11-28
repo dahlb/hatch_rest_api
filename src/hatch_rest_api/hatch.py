@@ -75,6 +75,12 @@ def request_with_logging_and_errors(
     return request_with_logging_wrapper
 
 
+def _scheduled_routine_display_order(routine: ScheduledRoutineAlarm) -> float:
+    """Sort key putting routines without a ``displayOrder`` last."""
+    display_order = routine.get("displayOrder")
+    return float("inf") if display_order is None else display_order
+
+
 class Hatch:
     """Async client for the Hatch REST API at data.hatchbaby.com."""
 
@@ -93,9 +99,9 @@ class Hatch:
     @request_with_logging_and_errors
     @request_with_logging
     async def _post_request_with_logging_and_errors_raised(
-        self, url: str, json_body: dict | list, auth_token: str | None = None
+        self, url: str, json_body: dict[str, Any] | list[Any], auth_token: str | None = None
     ) -> ClientResponse:
-        headers = {USER_AGENT: "hatch_rest_api"}
+        headers: dict[str, str] = {USER_AGENT: "hatch_rest_api"}
         if auth_token is not None:
             headers["X-HatchBaby-Auth"] = auth_token
         return await self.api_session.post(url=url, json=json_body, headers=headers)
@@ -103,9 +109,9 @@ class Hatch:
     @request_with_logging
     @request_with_logging_and_errors
     async def _get_request_with_logging_and_errors_raised(
-        self, url: str, auth_token: str | None = None, params: dict | None = None
+        self, url: str, auth_token: str | None = None, params: dict[str, Any] | None = None
     ) -> ClientResponse:
-        headers = {USER_AGENT: "hatch_rest_api"}
+        headers: dict[str, str] = {USER_AGENT: "hatch_rest_api"}
         if auth_token is not None:
             headers["X-HatchBaby-Auth"] = auth_token
         return await self.api_session.get(url=url, headers=headers, params=params)
@@ -129,7 +135,8 @@ class Hatch:
             url=url, json_body=json_body
         )
         response_json = await response.json()
-        return response_json["token"]
+        token: str = response_json["token"]
+        return token
 
     async def member(self, auth_token: str) -> dict[str, Any]:
         """Return the account member details."""
@@ -138,7 +145,8 @@ class Hatch:
             url=url, auth_token=auth_token
         )
         response_json = await response.json()
-        return response_json["payload"]
+        payload: dict[str, Any] = response_json["payload"]
+        return payload
 
     async def iot_devices(self, auth_token: str) -> list[dict[str, Any]]:
         """Return the account's IoT devices for every supported product."""
@@ -161,7 +169,8 @@ class Hatch:
             url=url, auth_token=auth_token, params=params
         )
         response_json = await response.json()
-        return response_json["payload"]
+        payload: list[dict[str, Any]] = response_json["payload"]
+        return payload
 
     async def token(self, auth_token: str) -> dict[str, Any]:
         """Return the AWS IoT token payload (region, identity id and token)."""
@@ -170,7 +179,8 @@ class Hatch:
             url=url, auth_token=auth_token
         )
         response_json = await response.json()
-        return response_json["payload"]
+        payload: dict[str, Any] = response_json["payload"]
+        return payload
 
     async def favorites(self, auth_token: str, mac: str) -> list[dict[str, Any]]:
         """Return the favorites for a device, sorted by display order."""
@@ -180,7 +190,7 @@ class Hatch:
             url=url, auth_token=auth_token, params=params
         )
         response_json = await response.json()
-        favorites = response_json["payload"]
+        favorites: list[dict[str, Any]] = response_json["payload"]
         favorites.sort(key=lambda x: x.get("displayOrder", float("inf")))
         return favorites
 
@@ -192,7 +202,7 @@ class Hatch:
             url=url, auth_token=auth_token, params=params
         )
         response_json = await response.json()
-        routines = response_json["payload"]
+        routines: list[dict[str, Any]] = response_json["payload"]
         routines.sort(key=lambda x: x.get("displayOrder", float("inf")))
         return routines
 
@@ -220,8 +230,8 @@ class Hatch:
             url=url, auth_token=auth_token, params=params
         )
         response_json = await response.json()
-        routines = response_json["payload"]
-        routines.sort(key=lambda x: x.get("displayOrder", float("inf")))
+        routines: list[ScheduledRoutineAlarm] = response_json["payload"]
+        routines.sort(key=_scheduled_routine_display_order)
         return routines
 
     async def update_scheduled_routine_alarm_enabled(
@@ -345,7 +355,8 @@ class Hatch:
             },
         )
         response_json = await response.json()
-        return response_json["payload"]
+        payload: dict[str, Any] = response_json["payload"]
+        return payload
 
     async def confirm_data_version(
         self,
@@ -379,7 +390,8 @@ class Hatch:
             },
         )
         response_json = await response.json()
-        return response_json["payload"]
+        payload: list[ScheduledRoutineAlarm] = response_json["payload"]
+        return payload
 
     async def restore_alarms(
         self, auth_token: str, mac: str, base_url: str = API_URL
@@ -398,7 +410,8 @@ class Hatch:
             url=f"{base_url}service/app/alarm/v1/fetch/{mac}", auth_token=auth_token
         )
         response_json = await response.json()
-        return response_json["payload"]
+        payload: list[dict[str, Any]] = response_json["payload"]
+        return payload
 
     async def create_restore_alarm(
         self, auth_token: str, alarm: dict[str, Any], base_url: str = API_URL
@@ -419,7 +432,8 @@ class Hatch:
             json_body=alarm,
         )
         response_json = await response.json()
-        return response_json["payload"]
+        payload: list[dict[str, Any]] = response_json["payload"]
+        return payload
 
     async def update_restore_alarms(
         self, auth_token: str, alarms: list[dict[str, Any]], base_url: str = API_URL
@@ -440,7 +454,8 @@ class Hatch:
             json_body=alarms,
         )
         response_json = await response.json()
-        return response_json["payload"]
+        payload: list[dict[str, Any]] = response_json["payload"]
+        return payload
 
     async def content(
         self, auth_token: str, product: str, content: list[str], max_retries: int = 3
@@ -465,7 +480,7 @@ class Hatch:
                 response: ClientResponse = await self._get_request_with_logging_and_errors_raised(
                     url=url, auth_token=auth_token, params=params
                 )
-                response_json = await response.json()
+                response_json: dict[str, dict[str, Any]] = await response.json()
                 return response_json["payload"]
             except RateError:
                 retry_count += 1

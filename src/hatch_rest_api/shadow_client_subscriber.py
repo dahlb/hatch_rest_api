@@ -1,7 +1,7 @@
 """Base class for devices whose state is synced through an AWS IoT device shadow."""
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from awscrt import mqtt
 from awsiot import iotshadow
@@ -32,13 +32,17 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
 
     document_version: int = -1
 
+    if TYPE_CHECKING:
+        # Implemented by every device subclass.
+        def _update_local_state(self, state: dict[str, Any]) -> None: ...
+
     def __init__(
         self,
         device_name: str,
         thing_name: str,
         mac: str,
         shadow_client: IotShadowClient,
-        favorites: list | None = None,
+        favorites: list[Any] | None = None,
         sounds: list[SoundContent | SimpleSoundContent] | None = None,
     ) -> None:
         """Subscribe to the device shadow and request its current state.

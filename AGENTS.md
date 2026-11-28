@@ -56,11 +56,11 @@ Python 3.14 is used for development and CI (`requires-python >= 3.12`).
 
 ```bash
 scripts/setup      # creates .venv with python3.14, installs `--group dev -e .`, installs prek hooks
-scripts/lint       # .venv/bin/prek run -a  (ruff check --fix, ruff format, codespell, actionlint, yaml/toml/json checks)
+scripts/lint       # .venv/bin/prek run -a  (ruff check --fix, ruff format, codespell, actionlint, yaml/toml/json checks), then .venv/bin/mypy (strict, src/hatch_rest_api)
 scripts/test       # .venv/bin/python -m pytest  (extra args are passed through)
 ```
 
-Without the scripts: `pip install --group dev -e .`, then `prek run -a` and `pytest`.
+Without the scripts: `pip install --group dev -e .`, then `prek run -a`, `mypy` and `pytest`.
 
 Run lint and tests before finishing any change. CI runs both on every PR.
 

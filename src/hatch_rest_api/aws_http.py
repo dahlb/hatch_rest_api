@@ -29,7 +29,7 @@ class AwsHttp:
 
     @request_with_logging
     async def _post_request_with_logging_and_errors_raised(
-        self, url: str, json_body: dict, headers: dict | None = None
+        self, url: str, json_body: dict[str, Any], headers: dict[str, str] | None = None
     ) -> ClientResponse:
         return await self.api_session.post(url=url, json=json_body, headers=headers)
 
@@ -64,4 +64,5 @@ class AwsHttp:
             url=url, json_body=json_body, headers=headers
         )
         data = await response.read()
-        return json.loads(data)
+        credentials: dict[str, Any] = json.loads(data)
+        return credentials

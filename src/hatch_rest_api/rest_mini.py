@@ -13,15 +13,15 @@ _LOGGER = logging.getLogger(__name__)
 class RestMini(ShadowClientSubscriberMixin):
     """Hatch Rest Mini sound machine."""
 
-    firmware_version: str = None
-    is_online: bool = None
+    firmware_version: str | None = None
+    is_online: bool | None = None
 
-    audio_track: RestMiniAudioTrack = None
-    volume: int = None
+    audio_track: RestMiniAudioTrack | None = None
+    volume: int | None = None
 
     current_playing: str = "none"
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> dict[str, Any]:  # type: ignore[override]  # ha_hatch diagnostics read this dict
         """Return the device state as a dictionary for debugging."""
         return {
             "device_name": self.device_name,
