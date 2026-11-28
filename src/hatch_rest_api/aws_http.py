@@ -19,7 +19,7 @@ class AwsHttp:
     def __init__(self, client_session: ClientSession | None = None) -> None:
         """Create the client, optionally reusing an existing aiohttp session."""
         if client_session is None:
-            self.api_session = ClientSession(raise_for_status=True)
+            self.api_session = ClientSession(raise_for_status=False)
         else:
             self.api_session = client_session
 
@@ -63,6 +63,8 @@ class AwsHttp:
         response: ClientResponse = await self._post_request_with_logging_and_errors_raised(
             url=url, json_body=json_body, headers=headers
         )
+        # Checked here rather than by the session, so the error body is logged first.
+        response.raise_for_status()
         data = await response.read()
         credentials: dict[str, Any] = json.loads(data)
         return credentials

@@ -69,9 +69,10 @@ class FakeContentful:
 
     instances: ClassVar[list[FakeContentful]] = []
 
-    def __init__(self, client_session: Any = None) -> None:
-        """Record the session it was given."""
+    def __init__(self, client_session: Any = None, rate_limit_retries: int = 3) -> None:
+        """Record the session and retry setting it was given."""
         self.client_session = client_session
+        self.rate_limit_retries = rate_limit_retries
         self.closed = False
         FakeContentful.instances.append(self)
 
@@ -524,3 +525,28 @@ class GetRestDevicesContentfulSessionTest(unittest.TestCase):
         ):
             self._run()
         assert [c.closed for c in FakeContentful.instances] == [True]
+
+
+def test_rate_limit_retries_reach_both_api_clients() -> None:
+    """get_rest_devices passes rate_limit_retries to the Hatch and Contentful clients."""
+    hatch = MagicMock(side_effect=FakeHatch)
+    contentful = MagicMock()
+    with (
+        patch.object(util_bootstrap, "Hatch", hatch),
+        patch.object(util_bootstrap, "Contentful", contentful),
+        patch.object(util_bootstrap, "AwsHttp", FakeAwsHttp),
+        patch.object(util_bootstrap, "AwsCredentialsProvider", MagicMock()),
+        patch.object(util_bootstrap, "io", MagicMock()),
+        patch.object(util_bootstrap, "IotShadowClient", lambda *a, **kw: FakeShadowClient()),
+        patch.object(util_bootstrap, "websockets_with_default_aws_signing", MagicMock()),
+    ):
+        asyncio.run(
+            util_bootstrap.get_rest_devices(
+                email="user@example.com",
+                password="hunter2",
+                client_session=MagicMock(),
+                rate_limit_retries=0,
+            )
+        )
+    assert hatch.call_args.kwargs["rate_limit_retries"] == 0
+    assert contentful.call_args.kwargs["rate_limit_retries"] == 0
