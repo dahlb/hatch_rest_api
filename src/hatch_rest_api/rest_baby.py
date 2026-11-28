@@ -151,22 +151,20 @@ class RestBaby(ShadowClientSubscriberMixin):
         """Whether the clock display is on."""
         return self.flags is not None and bool(self.flags & RIOT_FLAGS_CLOCK_ON)
 
-    def favorite_names(self, active_only: bool = True) -> list[str]:
+    def favorite_names(self, active_only: bool = False) -> list[str]:
         """Return favorites as ``name-id`` strings.
 
         Args:
-            active_only: Currently has no effect; every favorite is returned.
+            active_only: Only return favorites marked active in the Hatch app.
 
         Returns:
             One ``name-id`` string per favorite.
         """
-        names = []
-        for favorite in self.favorites:
-            if active_only and favorite["active"]:
-                names.append(f"{favorite['name']}-{favorite['id']}")
-            else:
-                names.append(f"{favorite['name']}-{favorite['id']}")
-        return names
+        return [
+            f"{favorite['name']}-{favorite['id']}"
+            for favorite in self.favorites
+            if not active_only or favorite.get("active")
+        ]
 
     def set_volume(self, percentage: int) -> None:
         """Set the volume as a 0-100 percentage."""
@@ -331,38 +329,22 @@ class RestBaby(ShadowClientSubscriberMixin):
         self._update({"current": {"srId": 0, "step": 0, "playing": "none"}})
 
     def turn_light_off(self) -> None:
-        """Turn off the light; a playing favorite keeps its sound."""
+        """Turn off the light, leaving any playing sound on."""
         _LOGGER.debug("Turning light off")
-        # if favorite is playing then light can be turned off without turning off sound
-        if self.current_playing == "routine":
-            self._update(
-                {
-                    "current": {
-                        "color": {
-                            "id": NO_COLOR_ID,
-                            "r": 0,
-                            "g": 0,
-                            "b": 0,
-                            "w": 0,
-                        }
-                    }
-                }
-            )
-        if self.current_playing == "remote":
-            self._update(
-                {
-                    "current": {
-                        "playing": "none",
-                        "color": {
-                            "id": NO_COLOR_ID,
-                            "r": 0,
-                            "g": 0,
-                            "b": 0,
-                            "w": 0,
-                        },
-                    }
-                }
-            )
+        color_off = {
+            "id": NO_COLOR_ID,
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "w": 0,
+        }
+        # Only the light: a sound that is playing keeps playing (favorites and remote alike).
+        if self.current_playing == "routine" or (
+            self.current_playing == "remote" and self.is_playing
+        ):
+            self._update({"current": {"color": color_off}})
+        elif self.current_playing == "remote":
+            self._update({"current": {"playing": "none", "color": color_off}})
 
     def set_color(
         self, red: int, green: int, blue: int, white: int = 0, brightness: int = 0
