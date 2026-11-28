@@ -3,8 +3,11 @@
 Releases are fully automated by `.github/workflows/release.yml` on every push to `main`.
 
 1. [semantic-release](https://semantic-release.gitbook.io/) (configured in `.releaserc.json`)
-   reads the Conventional Commit messages since the last tag to decide whether a release is
-   needed and what the next version is (`fix:` → patch, `feat:` → minor, `!`/`BREAKING CHANGE` → major).
+   reads the Conventional Commit messages since the last tag (using the `conventionalcommits`
+   preset) to decide whether a release is needed and what the next version is:
+   - `fix:` → patch
+   - `feat:` → minor
+   - `!` after the type/scope (e.g. `feat!:`, `fix(api)!:`) or a `BREAKING CHANGE:` footer → major
 2. The workflow writes the new version into `VERSION` in `src/hatch_rest_api/const.py`.
 3. The package is built and checked with `hynek/build-and-inspect-python-package` and
    published to PyPI.
