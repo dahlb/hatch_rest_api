@@ -5,12 +5,12 @@
 | Name                                               |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |--------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
 | src/hatch\_rest\_api/\_\_init\_\_.py               |       16 |        0 |        0 |        0 |    100% |           |
-| src/hatch\_rest\_api/aws\_http.py                  |       25 |        1 |        2 |        1 |     93% |        22 |
+| src/hatch\_rest\_api/aws\_http.py                  |       26 |        0 |        2 |        0 |    100% |           |
 | src/hatch\_rest\_api/callbacks.py                  |       20 |        0 |        8 |        0 |    100% |           |
 | src/hatch\_rest\_api/const.py                      |      155 |        0 |        0 |        0 |    100% |           |
-| src/hatch\_rest\_api/contentful.py                 |       46 |        2 |        8 |        0 |     96% |     79-80 |
+| src/hatch\_rest\_api/contentful.py                 |       46 |        3 |        8 |        1 |     93% |83, 100-101 |
 | src/hatch\_rest\_api/errors.py                     |        5 |        0 |        0 |        0 |    100% |           |
-| src/hatch\_rest\_api/hatch.py                      |      174 |       44 |       20 |        5 |     74% |48-49, 53-63, 90, 97, 117-\>119, 189-197, 201-209, 306-\>332, 315-\>332, 317-324, 476-501 |
+| src/hatch\_rest\_api/hatch.py                      |      177 |       23 |       20 |        3 |     87% |52, 68-69, 139, 233-241, 245-253, 350-\>376, 359-\>376, 361-368, 527-528 |
 | src/hatch\_rest\_api/iot\_device.py                |      150 |        0 |       52 |        0 |    100% |           |
 | src/hatch\_rest\_api/rest\_baby.py                 |       30 |        0 |        4 |        1 |     97% | 21-\>exit |
 | src/hatch\_rest\_api/rest\_iot.py                  |       31 |        0 |        6 |        1 |     97% | 21-\>exit |
@@ -24,9 +24,9 @@
 | src/hatch\_rest\_api/shadow\_client\_subscriber.py |       81 |        5 |       18 |        8 |     87% |44, 80-\>82, 82-\>84, 165-171, 172-\>exit, 180, 181-\>exit, 183, 185-\>exit |
 | src/hatch\_rest\_api/types.py                      |        3 |        0 |        0 |        0 |    100% |           |
 | src/hatch\_rest\_api/util.py                       |       48 |        1 |       22 |        1 |     97% |        33 |
-| src/hatch\_rest\_api/util\_bootstrap.py            |      225 |       46 |       64 |       17 |     78% |113-114, 117, 122-\>124, 168, 242-244, 249, 254, 259, 264, 271, 297, 309, 321, 333, 369-372, 388-391, 463-476, 487-492, 494-537 |
-| src/hatch\_rest\_api/util\_http.py                 |       31 |        0 |        4 |        0 |    100% |           |
-| **TOTAL**                                          | **1878** |  **158** |  **472** |   **93** | **89%** |           |
+| src/hatch\_rest\_api/util\_bootstrap.py            |      226 |       46 |       64 |       17 |     78% |114-115, 118, 123-\>125, 173, 247-249, 254, 259, 264, 269, 276, 302, 314, 326, 338, 374-377, 393-396, 468-481, 492-497, 499-542 |
+| src/hatch\_rest\_api/util\_http.py                 |       48 |        0 |        8 |        0 |    100% |           |
+| **TOTAL**                                          | **1900** |  **137** |  **476** |   **91** | **90%** |           |
 
 
 ## Setup coverage badge
