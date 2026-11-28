@@ -36,6 +36,7 @@ from .scheduled_routine import (
 )
 from .types import SimpleSoundContent, SoundContent
 from .util import clean_for_logging
+from .util_http import DEFAULT_RATE_LIMIT_RETRIES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -141,6 +142,7 @@ async def get_rest_devices(
     client_session: ClientSession | None = None,
     on_connection_interrupted: Callable[..., None] | None = None,
     on_connection_resumed: Callable[..., None] | None = None,
+    rate_limit_retries: int = DEFAULT_RATE_LIMIT_RETRIES,
 ) -> tuple[Hatch, mqtt.Connection, list[RestDevice], Any]:
     """Log in, discover the account's devices and connect them over AWS IoT.
 
@@ -150,6 +152,9 @@ async def get_rest_devices(
         client_session: Optional aiohttp session to reuse for HTTP requests.
         on_connection_interrupted: Callback passed to the MQTT connection.
         on_connection_resumed: Callback passed to the MQTT connection.
+        rate_limit_retries: How many times each Hatch and Contentful request is retried
+            when rate limited, with 2, 4, 8... second waits, before ``RateError`` is
+            raised. Pass 0 to handle rate limits yourself.
 
     Returns:
         The API client, the MQTT connection, one object per supported device, and the
@@ -161,8 +166,8 @@ async def get_rest_devices(
     loop = asyncio.get_running_loop()
     aws_log_level = io.LogLevel.Debug if _LOGGER.isEnabledFor(logging.DEBUG) else io.LogLevel.NoLogs
     await loop.run_in_executor(None, io.set_log_level, aws_log_level)
-    api = Hatch(client_session=client_session)
-    contentful = Contentful(client_session=client_session)
+    api = Hatch(client_session=client_session, rate_limit_retries=rate_limit_retries)
+    contentful = Contentful(client_session=client_session, rate_limit_retries=rate_limit_retries)
     token = await api.login(email=email, password=password)
     iot_devices = await api.iot_devices(auth_token=token)
     if len(iot_devices) == 0:

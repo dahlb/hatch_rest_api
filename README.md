@@ -112,9 +112,14 @@ The library's own errors subclass `BaseError`:
 | Error | Raised when |
 |---|---|
 | `AuthError` | Hatch reports the session is invalid (error code `1001`). Log in again. |
-| `RateError` | Hatch answers HTTP 429. Back off before retrying. `Hatch.content()` retries with exponential backoff on its own; other calls raise straight away. |
+| `RateError` | Hatch or Contentful still answers HTTP 429 after the retries described below. |
 | `DeviceSyncError` | A device does not confirm a change it had to apply over MQTT (original Restore alarms). |
 | `BaseError` | The account has no supported devices. |
+
+Rate-limited requests are retried with exponential backoff, waiting 2, 4 and 8 seconds,
+before `RateError` is raised. Set the number of retries with
+`get_rest_devices(..., rate_limit_retries=N)` or `Hatch(rate_limit_retries=N)`; pass `0` to
+raise `RateError` straight away and handle rate limits yourself.
 
 Other failures from the Hatch HTTP API, such as an error response or a body that isn't
 JSON, raise `aiohttp.ClientError`. MQTT failures raise the AWS IoT SDK's own exceptions.

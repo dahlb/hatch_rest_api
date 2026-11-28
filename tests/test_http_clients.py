@@ -76,7 +76,7 @@ async def test_non_json_response_raises() -> None:
 async def test_rate_limit_is_retried_with_backoff() -> None:
     """A 429 is retried after an exponential backoff, then succeeds."""
     session = _session(_response(status=429), _response(status=429), _response(body={"data": 1}))
-    with patch("hatch_rest_api.contentful.asyncio.sleep", new=AsyncMock()) as sleep:
+    with patch("hatch_rest_api.util_http.asyncio.sleep", new=AsyncMock()) as sleep:
         data = await Contentful(client_session=session).graphql_query("query Q { x }")
 
     assert data == 1
@@ -87,7 +87,7 @@ async def test_rate_limit_gives_up_after_max_retries() -> None:
     """After max_retries rate-limited retries, RateError is raised."""
     session = _session(*(_response(status=429) for _ in range(3)))
     with (
-        patch("hatch_rest_api.contentful.asyncio.sleep", new=AsyncMock()),
+        patch("hatch_rest_api.util_http.asyncio.sleep", new=AsyncMock()),
         pytest.raises(RateError),
     ):
         await Contentful(client_session=session).graphql_query("query Q { x }", max_retries=2)

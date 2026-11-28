@@ -457,3 +457,28 @@ class GetRestDevicesRestoreAlarmsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_rate_limit_retries_reach_both_api_clients() -> None:
+    """get_rest_devices passes rate_limit_retries to the Hatch and Contentful clients."""
+    hatch = MagicMock(side_effect=FakeHatch)
+    contentful = MagicMock()
+    with (
+        patch.object(util_bootstrap, "Hatch", hatch),
+        patch.object(util_bootstrap, "Contentful", contentful),
+        patch.object(util_bootstrap, "AwsHttp", FakeAwsHttp),
+        patch.object(util_bootstrap, "AwsCredentialsProvider", MagicMock()),
+        patch.object(util_bootstrap, "io", MagicMock()),
+        patch.object(util_bootstrap, "IotShadowClient", lambda *a, **kw: FakeShadowClient()),
+        patch.object(util_bootstrap, "websockets_with_default_aws_signing", MagicMock()),
+    ):
+        asyncio.run(
+            util_bootstrap.get_rest_devices(
+                email="user@example.com",
+                password="hunter2",
+                client_session=MagicMock(),
+                rate_limit_retries=0,
+            )
+        )
+    assert hatch.call_args.kwargs["rate_limit_retries"] == 0
+    assert contentful.call_args.kwargs["rate_limit_retries"] == 0

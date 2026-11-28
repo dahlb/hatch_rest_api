@@ -1,12 +1,11 @@
 """Client for the Hatch REST API."""
 
-import asyncio
 from collections.abc import Awaitable, Callable, Iterable
 from datetime import time
 import logging
 from typing import Any
 
-from aiohttp import ClientError, ClientResponse, ClientSession, __version__
+from aiohttp import ClientError, ClientResponse, ClientResponseError, ClientSession, __version__
 from aiohttp.hdrs import USER_AGENT
 
 from .errors import AuthError, RateError
@@ -18,7 +17,7 @@ from .scheduled_routine import (
     alarm_wake_time_update_payload,
     alarm_weekdays_update_payload,
 )
-from .util_http import request_with_logging
+from .util_http import DEFAULT_RATE_LIMIT_RETRIES, request_with_logging, retry_when_rate_limited
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,7 +41,15 @@ def request_with_logging_and_errors(
     """
 
     async def request_with_logging_wrapper(*args: Any, **kwargs: Any) -> ClientResponse:
-        response = await func(*args, **kwargs)
+        try:
+            response = await func(*args, **kwargs)
+        except ClientResponseError as err:
+            # A session made with raise_for_status=True (Hatch's own) raises before
+            # the status check below can see the 429.
+            if err.status == 429:
+                _LOGGER.warning("Rate limited (429) for URL: %s", err.request_info.real_url)
+                raise RateError("API rate limit exceeded. Please wait before retrying.") from err
+            raise
 
         if response.status == 429:
             _LOGGER.warning("Rate limited (429) for URL: %s", response.url)
@@ -75,6 +82,26 @@ def request_with_logging_and_errors(
     return request_with_logging_wrapper
 
 
+def retry_rate_limited_requests(
+    func: Callable[..., Awaitable[ClientResponse]],
+) -> Callable[..., Awaitable[ClientResponse]]:
+    """Retry a ``Hatch`` request method with backoff while it is rate limited.
+
+    The number of retries is the client's ``rate_limit_retries``, or the
+    ``max_retries`` keyword argument when a caller passes one.
+    """
+
+    async def retry_wrapper(
+        self: Hatch, *args: Any, max_retries: int | None = None, **kwargs: Any
+    ) -> ClientResponse:
+        retries = self.rate_limit_retries if max_retries is None else max_retries
+        return await retry_when_rate_limited(
+            lambda: func(self, *args, **kwargs), retries, kwargs.get("url", "Hatch API request")
+        )
+
+    return retry_wrapper
+
+
 def _scheduled_routine_display_order(routine: ScheduledRoutineAlarm) -> float:
     """Sort key putting routines without a ``displayOrder`` last."""
     display_order = routine.get("displayOrder")
@@ -84,8 +111,21 @@ def _scheduled_routine_display_order(routine: ScheduledRoutineAlarm) -> float:
 class Hatch:
     """Async client for the Hatch REST API at data.hatchbaby.com."""
 
-    def __init__(self, client_session: ClientSession | None = None) -> None:
-        """Create the client, optionally reusing an existing aiohttp session."""
+    rate_limit_retries: int = DEFAULT_RATE_LIMIT_RETRIES
+
+    def __init__(
+        self,
+        client_session: ClientSession | None = None,
+        rate_limit_retries: int = DEFAULT_RATE_LIMIT_RETRIES,
+    ) -> None:
+        """Create the client.
+
+        Args:
+            client_session: aiohttp session to reuse; one is created if omitted.
+            rate_limit_retries: How many times to retry a rate-limited request, with
+                2, 4, 8... second waits, before raising ``RateError``. 0 disables retries.
+        """
+        self.rate_limit_retries = rate_limit_retries
         if client_session is None:
             self.api_session = ClientSession(raise_for_status=True)
         else:
@@ -96,6 +136,7 @@ class Hatch:
         """Close the underlying aiohttp session."""
         await self.api_session.close()
 
+    @retry_rate_limited_requests
     @request_with_logging_and_errors
     @request_with_logging
     async def _post_request_with_logging_and_errors_raised(
@@ -106,6 +147,7 @@ class Hatch:
             headers["X-HatchBaby-Auth"] = auth_token
         return await self.api_session.post(url=url, json=json_body, headers=headers)
 
+    @retry_rate_limited_requests
     @request_with_logging
     @request_with_logging_and_errors
     async def _get_request_with_logging_and_errors_raised(
@@ -458,7 +500,7 @@ class Hatch:
         return payload
 
     async def content(
-        self, auth_token: str, product: str, content: list[str], max_retries: int = 3
+        self, auth_token: str, product: str, content: list[str], max_retries: int | None = None
     ) -> dict[str, Any]:
         """Fetch content for a product, retrying with backoff when rate limited.
 
@@ -466,7 +508,8 @@ class Hatch:
             auth_token: Hatch auth token.
             product: Product name, e.g. ``"riot"``.
             content: Content types to fetch: ``"sound"``, ``"color"`` and/or ``"windDown"``.
-            max_retries: Number of retries after a rate-limit response.
+            max_retries: Retries after a rate-limit response; defaults to the client's
+                ``rate_limit_retries``.
 
         Returns:
             The content payload, with the items under ``contentItems``.
@@ -474,26 +517,8 @@ class Hatch:
         url = API_URL + "service/app/content/v1/fetchByProduct"
         params = {"product": product, "contentTypes": content}
 
-        retry_count = 0
-        while True:
-            try:
-                response: ClientResponse = await self._get_request_with_logging_and_errors_raised(
-                    url=url, auth_token=auth_token, params=params
-                )
-                response_json: dict[str, dict[str, Any]] = await response.json()
-                return response_json["payload"]
-            except RateError:
-                retry_count += 1
-                if retry_count > max_retries:
-                    _LOGGER.error("Maximum retries (%s) exceeded for content API call", max_retries)
-                    raise
-
-                # Calculate exponential backoff wait time (2^retry_count seconds)
-                wait_time = 2**retry_count
-                _LOGGER.warning(
-                    "Rate limited. Retrying in %s seconds (attempt %s/%s)",
-                    wait_time,
-                    retry_count,
-                    max_retries,
-                )
-                await asyncio.sleep(wait_time)
+        response: ClientResponse = await self._get_request_with_logging_and_errors_raised(
+            url=url, auth_token=auth_token, params=params, max_retries=max_retries
+        )
+        response_json: dict[str, dict[str, Any]] = await response.json()
+        return response_json["payload"]
