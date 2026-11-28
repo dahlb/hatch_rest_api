@@ -69,9 +69,10 @@ class FakeContentful:
 
     instances: ClassVar[list[FakeContentful]] = []
 
-    def __init__(self, client_session: Any = None) -> None:
-        """Record the session it was given."""
+    def __init__(self, client_session: Any = None, rate_limit_retries: int = 3) -> None:
+        """Record the session and retry setting it was given."""
         self.client_session = client_session
+        self.rate_limit_retries = rate_limit_retries
         self.closed = False
         FakeContentful.instances.append(self)
 
