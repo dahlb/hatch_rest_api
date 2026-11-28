@@ -21,12 +21,12 @@
 | src/hatch\_rest\_api/restore\_v4.py                |        2 |        0 |        0 |        0 |    100% |           |
 | src/hatch\_rest\_api/restore\_v5.py                |       94 |        0 |       28 |        0 |    100% |           |
 | src/hatch\_rest\_api/scheduled\_routine.py         |      234 |       40 |       96 |       26 |     78% |81, 123, 174, 202, 249, 251, 253, 268, 276, 290-291, 336, 340, 344, 375, 388, 390, 392, 479-480, 482, 492, 509-534, 552-553, 555, 568, 582, 587 |
-| src/hatch\_rest\_api/shadow\_client\_subscriber.py |       81 |        5 |       18 |        8 |     87% |44, 80-\>82, 82-\>84, 165-171, 172-\>exit, 180, 181-\>exit, 183, 185-\>exit |
+| src/hatch\_rest\_api/shadow\_client\_subscriber.py |      123 |        5 |       28 |        8 |     91% |57, 93-\>95, 95-\>97, 193-199, 200-\>exit, 208, 209-\>exit, 211, 213-\>exit |
 | src/hatch\_rest\_api/types.py                      |        3 |        0 |        0 |        0 |    100% |           |
 | src/hatch\_rest\_api/util.py                       |       48 |        1 |       22 |        1 |     97% |        33 |
 | src/hatch\_rest\_api/util\_bootstrap.py            |      226 |       46 |       64 |       17 |     78% |114-115, 118, 123-\>125, 173, 247-249, 254, 259, 264, 269, 276, 302, 314, 326, 338, 374-377, 393-396, 468-481, 492-497, 499-542 |
 | src/hatch\_rest\_api/util\_http.py                 |       48 |        0 |        8 |        0 |    100% |           |
-| **TOTAL**                                          | **1900** |  **137** |  **476** |   **91** | **90%** |           |
+| **TOTAL**                                          | **1942** |  **137** |  **486** |   **91** | **90%** |           |
 
 
 ## Setup coverage badge
