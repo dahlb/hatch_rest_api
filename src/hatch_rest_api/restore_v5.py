@@ -106,8 +106,8 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
         _LOGGER.debug("new state:%s", self)
         self.publish_updates()
 
-    def __repr__(self) -> dict[str, Any]:  # type: ignore[override]  # ha_hatch diagnostics read this dict
-        """Return the device state as a dictionary for debugging."""
+    def as_dict(self) -> dict[str, Any]:
+        """Return the device state as a dictionary, for diagnostics and debugging."""
         return {
             "device_name": self.device_name,
             "thing_name": self.thing_name,
@@ -137,10 +137,6 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
             "is_clock_on": self.is_clock_on,
             "is_clock_24h": self.is_clock_24h,
         }
-
-    def __str__(self) -> str:
-        """Return the device state as a string."""
-        return f"{self.__repr__()}"
 
     @property
     def is_on(self) -> bool:

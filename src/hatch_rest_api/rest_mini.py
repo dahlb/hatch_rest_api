@@ -21,8 +21,8 @@ class RestMini(ShadowClientSubscriberMixin):
 
     current_playing: str = "none"
 
-    def __repr__(self) -> dict[str, Any]:  # type: ignore[override]  # ha_hatch diagnostics read this dict
-        """Return the device state as a dictionary for debugging."""
+    def as_dict(self) -> dict[str, Any]:
+        """Return the device state as a dictionary, for diagnostics and debugging."""
         return {
             "device_name": self.device_name,
             "thing_name": self.thing_name,
@@ -34,10 +34,6 @@ class RestMini(ShadowClientSubscriberMixin):
             "volume": self.volume,
             "document_version": self.document_version,
         }
-
-    def __str__(self) -> str:
-        """Return the device state as a string."""
-        return f"{self.__repr__()}"
 
     def _update_local_state(self, state: dict[str, Any]) -> None:
         _LOGGER.debug("update local state: %s, %s", self.device_name, state)
