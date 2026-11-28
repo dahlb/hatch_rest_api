@@ -158,22 +158,20 @@ class RestIot(ShadowClientSubscriberMixin):
         """Whether the clock displays 24-hour time."""
         return self.flags is not None and bool(self.flags & RIOT_FLAGS_CLOCK_24_HOUR)
 
-    def favorite_names(self, active_only: bool = True) -> list[str]:
+    def favorite_names(self, active_only: bool = False) -> list[str]:
         """Return favorites as ``name-id`` strings.
 
         Args:
-            active_only: Currently has no effect; every favorite is returned.
+            active_only: Only return favorites marked active in the Hatch app.
 
         Returns:
             One ``name-id`` string per favorite.
         """
-        names = []
-        for favorite in self.favorites:
-            if active_only and favorite["active"]:
-                names.append(f"{favorite['name']}-{favorite['id']}")
-            else:
-                names.append(f"{favorite['name']}-{favorite['id']}")
-        return names
+        return [
+            f"{favorite['name']}-{favorite['id']}"
+            for favorite in self.favorites
+            if not active_only or favorite.get("active")
+        ]
 
     def set_volume(self, percentage: int) -> None:
         """Set the volume as a 0-100 percentage."""
