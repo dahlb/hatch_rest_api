@@ -23,6 +23,8 @@ src/hatch_rest_api/
   contentful.py               Contentful GraphQL client (Restore sound catalog)
   util_bootstrap.py           get_rest_devices(): login -> discover -> MQTT connect -> device objects
   shadow_client_subscriber.py ShadowClientSubscriberMixin: base for all devices, syncs the shadow
+  iot_device.py               IotDevice / IotSoundDevice: shared light, sound, clock and favorites
+                              code for RestIot, RestBaby, RestoreIot and RestoreV5 (and RestoreV4)
   callbacks.py                CallbacksMixin: state-change callback registration
   scheduled_routine.py        Alarm (scheduled routine) helpers and ScheduledRoutineAlarmMixin
   rest_mini.py, rest_plus.py, rest_iot.py, rest_baby.py,
@@ -46,6 +48,13 @@ scripts/                      setup, lint, test, live_smoke_test helpers
   `_update_local_state(state)` to map the reported shadow onto attributes, and call
   `self._update({...})` to send a desired-state change; the device's reported state then
   arrives back through the shadow subscription and `_update_local_state`.
+- RestIot, RestBaby, RestoreIot and RestoreV5 share the `current` / `clock` shadow layout
+  and subclass `IotDevice` (`iot_device.py`), which reads the shared shadow fields and holds
+  the shared commands. A subclass reads its own extra fields in `_update_device_state(state)`.
+  `IotSoundDevice` adds `set_sound` for the classes that have it (not RestoreIot). Only put a
+  member on these bases if every subclass already has it: the Home Assistant integration
+  detects features with `isinstance` and `hasattr`, so the device classes stay siblings and
+  must not gain attributes or methods (`tests/test_iot_device.py` checks this).
 - Devices with alarms also mix in `ScheduledRoutineAlarmMixin`.
 - Blocking MQTT/SDK futures are bounded by `MQTT_TIMEOUT`; blocking `awscrt` calls in async
   code go through `loop.run_in_executor` (see `util_bootstrap.py`).
