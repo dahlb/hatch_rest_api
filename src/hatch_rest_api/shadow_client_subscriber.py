@@ -291,6 +291,12 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
 
 
 async def _await_mqtt(future: Future[Any]) -> Any:
-    """Await an awscrt/awsiot future, giving up after ``MQTT_TIMEOUT`` seconds."""
+    """Await an awscrt/awsiot future, giving up after ``MQTT_TIMEOUT`` seconds.
+
+    The wait is shielded so that giving up, or the caller being cancelled,
+    leaves ``future`` itself uncancelled: awscrt and awsiot complete it later
+    from their own thread with ``set_result()``, which raises
+    ``InvalidStateError`` there on a cancelled future.
+    """
     async with asyncio.timeout(MQTT_TIMEOUT):
-        return await asyncio.wrap_future(future)
+        return await asyncio.shield(asyncio.wrap_future(future))

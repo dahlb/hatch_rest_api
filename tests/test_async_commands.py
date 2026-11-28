@@ -211,3 +211,50 @@ async def test_async_unsubscribe() -> None:
     await device.async_unsubscribe()
     assert sorted(client.unsubscribed) == ["topic/a", "topic/b"]
     assert device._subscribed_topics == []
+
+
+async def test_timeout_leaves_the_mqtt_future_for_awscrt_to_complete() -> None:
+    """Giving up on an acknowledgement doesn't cancel awscrt's future.
+
+    awscrt completes it later from its own thread; set_result() on a cancelled
+    future would raise InvalidStateError on that thread.
+    """
+    client = ThreadedShadowClient(never=True)
+    device = _device(RestMini, client)
+    pending: list[Future[Any]] = []
+    publish = client.publish_update_shadow
+
+    def keep_future(request: Any, qos: Any) -> Future[Any]:
+        future = publish(request, qos)
+        pending.append(future)
+        return future
+
+    client.publish_update_shadow = keep_future  # type: ignore[method-assign]
+    with patch.object(subscriber_module, "MQTT_TIMEOUT", 0.05), pytest.raises(TimeoutError):
+        await device.async_command(device.set_volume, 50)
+
+    assert not pending[0].cancelled()
+    pending[0].set_result(None)  # what awscrt does when the PUBACK finally arrives
+
+
+async def test_cancelling_the_caller_leaves_the_mqtt_future_alone() -> None:
+    """Cancelling the task awaiting a command doesn't cancel awscrt's future either."""
+    client = ThreadedShadowClient(never=True)
+    device = _device(RestMini, client)
+    pending: list[Future[Any]] = []
+    publish = client.publish_update_shadow
+
+    def keep_future(request: Any, qos: Any) -> Future[Any]:
+        future = publish(request, qos)
+        pending.append(future)
+        return future
+
+    client.publish_update_shadow = keep_future  # type: ignore[method-assign]
+    task = asyncio.create_task(device.async_command(device.set_volume, 50))
+    await asyncio.sleep(0.01)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert not pending[0].cancelled()
+    pending[0].set_result(None)
