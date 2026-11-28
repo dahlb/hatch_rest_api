@@ -44,8 +44,8 @@ def request_with_logging_and_errors(
         try:
             response = await func(*args, **kwargs)
         except ClientResponseError as err:
-            # A session made with raise_for_status=True (Hatch's own) raises before
-            # the status check below can see the 429.
+            # A caller's session made with raise_for_status=True raises before the
+            # status check below can see the 429.
             if err.status == 429:
                 _LOGGER.warning("Rate limited (429) for URL: %s", err.request_info.real_url)
                 raise RateError("API rate limit exceeded. Please wait before retrying.") from err
@@ -127,7 +127,9 @@ class Hatch:
         """
         self.rate_limit_retries = rate_limit_retries
         if client_session is None:
-            self.api_session = ClientSession(raise_for_status=True)
+            # raise_for_status=False so every response, 429s and error bodies included,
+            # reaches request_with_logging_and_errors and is logged.
+            self.api_session = ClientSession(raise_for_status=False)
         else:
             self.api_session = client_session
         _LOGGER.debug("api_session_version: %s", __version__)

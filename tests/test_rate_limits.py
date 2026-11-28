@@ -58,7 +58,7 @@ def sleep() -> Iterator[AsyncMock]:
 
 
 SESSIONS: dict[str, Callable[[], ClientSession | None]] = {
-    # Hatch() makes its own session with raise_for_status=True.
+    # Hatch() makes its own session with raise_for_status=False.
     "hatch-own-session": lambda: None,
     "caller-session": ClientSession,
     "caller-session-raise-for-status": lambda: ClientSession(raise_for_status=True),
