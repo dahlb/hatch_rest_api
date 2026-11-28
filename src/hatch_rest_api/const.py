@@ -4,9 +4,26 @@ from enum import Enum
 
 VERSION: str = "1.42.0"
 
+# Keys whose values are masked in debug logs, compared case-insensitively. Covers
+# credentials and tokens in Hatch and AWS Cognito requests and responses, and
+# headers that carry them.
 SENSITIVE_FIELD_NAMES = [
+    # Hatch login request and account details
     "username",
     "password",
+    "email",
+    # Hatch login token, and the Cognito OpenID token from the Hatch token endpoint
+    "token",
+    # Cognito GetCredentialsForIdentity request (OpenID token) and response
+    "logins",
+    "accesskeyid",
+    "secretkey",
+    "sessiontoken",
+    # Headers
+    "authorization",
+    "x-hatchbaby-auth",
+    "cookie",
+    "set-cookie",
 ]
 
 MAX_IOT_VALUE = 2**16 - 1
