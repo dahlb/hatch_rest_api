@@ -2,7 +2,7 @@
 
 from enum import Enum
 
-VERSION: str = "1.42.1"
+VERSION: str = "1.42.2"
 
 # Keys whose values are masked in debug logs, compared case-insensitively. Covers
 # credentials and tokens in Hatch and AWS Cognito requests and responses, and
