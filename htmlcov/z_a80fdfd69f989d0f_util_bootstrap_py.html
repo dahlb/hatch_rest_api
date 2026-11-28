@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a80fdfd69f989d0f_util_http_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.5">coverage.py v7.17.5</a>,
-            created at 2026-11-28 02:25 +0000
+            created at 2026-11-28 02:31 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -118,7 +118,7 @@
     <p class="run run2"><span class="n"><a id="t34" href="#t34">34</a></span><span class="t">    <span class="nam">ScheduledRoutineAlarm</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t35" href="#t35">35</a></span><span class="t">    <span class="nam">ScheduledRoutineAlarmMixin</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t36" href="#t36">36</a></span><span class="t"><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t37" href="#t37">37</a></span><span class="t"><span class="key">from</span> <span class="op">.</span><span class="nam">types</span> <span class="key">import</span> <span class="nam">SimpleSoundContent</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t37" href="#t37">37</a></span><span class="t"><span class="key">from</span> <span class="op">.</span><span class="nam">types</span> <span class="key">import</span> <span class="nam">SimpleSoundContent</span><span class="op">,</span> <span class="nam">SoundContent</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t38" href="#t38">38</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t39" href="#t39">39</a></span><span class="t"><span class="nam">_LOGGER</span> <span class="op">=</span> <span class="nam">logging</span><span class="op">.</span><span class="nam">getLogger</span><span class="op">(</span><span class="nam">__name__</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t40" href="#t40">40</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -554,7 +554,7 @@
     <p class="pln"><span class="n"><a id="t470" href="#t470">470</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t471" href="#t471">471</a></span><span class="t"><span class="key">async</span> <span class="key">def</span> <span class="nam">_get_sound_content_for_all_v2_devices</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t472" href="#t472">472</a></span><span class="t">    <span class="nam">api</span><span class="op">:</span> <span class="nam">Hatch</span><span class="op">,</span> <span class="nam">token</span><span class="op">:</span> <span class="nam">str</span><span class="op">,</span> <span class="nam">contentful</span><span class="op">:</span> <span class="nam">Contentful</span><span class="op">,</span> <span class="nam">iot_devices</span><span class="op">:</span> <span class="nam">list</span><span class="op">[</span><span class="nam">dict</span><span class="op">[</span><span class="nam">str</span><span class="op">,</span> <span class="nam">Any</span><span class="op">]</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t473" href="#t473">473</a></span><span class="t"><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">dict</span><span class="op">[</span><span class="nam">str</span><span class="op">,</span> <span class="nam">list</span><span class="op">[</span><span class="nam">SimpleSoundContent</span><span class="op">]</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t473" href="#t473">473</a></span><span class="t"><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">dict</span><span class="op">[</span><span class="nam">str</span><span class="op">,</span> <span class="nam">list</span><span class="op">[</span><span class="nam">SoundContent</span> <span class="op">|</span> <span class="nam">SimpleSoundContent</span><span class="op">]</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t474" href="#t474">474</a></span><span class="t">    <span class="nam">mac_to_sounds</span> <span class="op">=</span> <span class="op">{</span><span class="op">}</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t475" href="#t475">475</a></span><span class="t">    <span class="key">for</span> <span class="nam">device</span> <span class="key">in</span> <span class="nam">iot_devices</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t476" href="#t476">476</a></span><span class="t">        <span class="nam">mac</span> <span class="op">=</span> <span class="nam">device</span><span class="op">[</span><span class="str">&quot;macAddress&quot;</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
@@ -624,7 +624,7 @@
             <a class="nav" href="z_a80fdfd69f989d0f_util_http_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.5">coverage.py v7.17.5</a>,
-            created at 2026-11-28 02:25 +0000
+            created at 2026-11-28 02:31 +0000
         </p>
     </div>
 </footer>
