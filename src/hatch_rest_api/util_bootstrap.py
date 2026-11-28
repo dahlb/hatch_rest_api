@@ -34,7 +34,7 @@ from .scheduled_routine import (
     ScheduledRoutineAlarm,
     ScheduledRoutineAlarmMixin,
 )
-from .types import SimpleSoundContent
+from .types import SimpleSoundContent, SoundContent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -470,7 +470,7 @@ async def _get_alarms_for_all_scheduled_routine_devices(
 
 async def _get_sound_content_for_all_v2_devices(
     api: Hatch, token: str, contentful: Contentful, iot_devices: list[dict[str, Any]]
-) -> dict[str, list[SimpleSoundContent]]:
+) -> dict[str, list[SoundContent | SimpleSoundContent]]:
     mac_to_sounds = {}
     for device in iot_devices:
         mac = device["macAddress"]

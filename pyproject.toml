@@ -61,16 +61,18 @@ where = ["src"]
 [tool.setuptools.dynamic]
 version = { attr = "hatch_rest_api.const.VERSION" }
 
+[tool.setuptools.package-data]
+hatch_rest_api = ["py.typed"]
+
 [tool.mypy]
 python_version = "3.14"
 # Scoped to the library only, matching blueair_api: the test suite relies on
 # duck-typed fakes passed where device classes are expected, which doesn't
-# type-check without a disproportionate rewrite. mypy is not yet part of
-# scripts/lint or CI: the library still has existing type errors to fix first,
-# after which scripts/lint and a py.typed marker can follow carrier_api.
+# type-check without a disproportionate rewrite.
 files = ["src/hatch_rest_api"]
 mypy_path = "src"
-check_untyped_defs = true
+# Strict mode, matching carrier_api. It implies check_untyped_defs.
+strict = true
 explicit_package_bases = true
 pretty = true
 show_error_codes = true
@@ -78,6 +80,7 @@ warn_unused_configs = true
 
 [[tool.mypy.overrides]]
 module = [
+    "_awscrt",
     "awscrt.*",
     "awsiot.*",
 ]

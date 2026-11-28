@@ -48,9 +48,9 @@ class SoundContent(TypedDict):
     hatchId: int
     contentSource: str
     seriesSize: int
-    tagIds: list
-    altTagIds: list
-    mixIds: list
+    tagIds: list[Any]
+    altTagIds: list[Any]
+    mixIds: list[Any]
     red: Any | None
     green: Any | None
     blue: Any | None

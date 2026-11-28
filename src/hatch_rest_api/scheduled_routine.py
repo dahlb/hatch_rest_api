@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 from datetime import datetime, time, timedelta
-from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict, cast
 
 if TYPE_CHECKING:
     from .hatch import Hatch
@@ -364,7 +364,7 @@ def _next_datetime_for_time(
     return next_time
 
 
-def _parse_local_datetime(value: str) -> datetime | None:
+def _parse_local_datetime(value: object) -> datetime | None:
     if not isinstance(value, str):
         return None
     try:
@@ -406,6 +406,16 @@ class ScheduledRoutineAlarmMixin:
     alarms_loaded: bool = False
     _alarm_api: Hatch | None = None
     _alarm_auth_token: str | None = None
+
+    if TYPE_CHECKING:
+        # Provided by the device class this mixin is combined with. Declared
+        # only for type checking: a runtime stub here would shadow the real
+        # publish_updates, since this mixin precedes it in the MRO.
+        mac: str
+        device_name: str
+
+        def publish_updates(self) -> None:
+            """Run every registered callback."""
 
     def configure_alarm_api(
         self,
@@ -481,7 +491,9 @@ class ScheduledRoutineAlarmMixin:
         if updated_alarms:
             self._replace_alarms(updated_alarms)
         else:
-            self._replace_alarms([{**alarm, **alarm_update_payload(alarm, enabled)}])
+            self._replace_alarms(
+                [cast("ScheduledRoutineAlarm", {**alarm, **alarm_update_payload(alarm, enabled)})]
+            )
         self.publish_updates()
 
     async def set_alarm_wake_time(self, alarm_id: int | str, wake_time: time) -> None:
@@ -511,7 +523,14 @@ class ScheduledRoutineAlarmMixin:
         if updated_alarms:
             self._replace_alarms(updated_alarms)
         else:
-            self._replace_alarms([{**alarm, **alarm_wake_time_update_payload(alarm, wake_time)}])
+            self._replace_alarms(
+                [
+                    cast(
+                        "ScheduledRoutineAlarm",
+                        {**alarm, **alarm_wake_time_update_payload(alarm, wake_time)},
+                    )
+                ]
+            )
         self.publish_updates()
 
     async def set_alarm_weekdays(
@@ -548,7 +567,14 @@ class ScheduledRoutineAlarmMixin:
         if updated_alarms:
             self._replace_alarms(updated_alarms)
         else:
-            self._replace_alarms([{**alarm, **alarm_weekdays_update_payload(alarm, weekdays_list)}])
+            self._replace_alarms(
+                [
+                    cast(
+                        "ScheduledRoutineAlarm",
+                        {**alarm, **alarm_weekdays_update_payload(alarm, weekdays_list)},
+                    )
+                ]
+            )
         self.publish_updates()
 
     def _configured_alarm_api(self) -> tuple[Hatch, str]:

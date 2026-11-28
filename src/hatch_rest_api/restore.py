@@ -319,7 +319,7 @@ class Restore(ShadowClientSubscriberMixin):
         _LOGGER.debug("new state:%s", self)
         self.publish_updates()
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> dict[str, Any]:  # type: ignore[override]  # ha_hatch diagnostics read this dict
         """Return the device state as a dictionary for debugging."""
         return {
             "device_name": self.device_name,

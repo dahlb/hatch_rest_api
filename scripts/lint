@@ -2,9 +2,15 @@
 
 cd "$(dirname "$0")/.."
 
-if [ ! -x .venv/bin/prek ]; then
+if [ ! -x .venv/bin/prek ] || [ ! -x .venv/bin/mypy ]; then
 	echo "Missing .venv tooling. Run scripts/setup first." >&2
 	exit 1
 fi
 
-.venv/bin/prek run -a
+status=0
+
+.venv/bin/prek run -a || status=$?
+# Type-check the package (tool.mypy files) in strict mode.
+.venv/bin/mypy || status=$?
+
+exit "$status"

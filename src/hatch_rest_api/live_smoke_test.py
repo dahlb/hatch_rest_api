@@ -165,7 +165,7 @@ class SmokeTestTranscript:
         self._transcript: TextIO | None = None
         self._stdout: TextIO | None = None
         self._stderr: TextIO | None = None
-        self._original_handler_streams: list[tuple[logging.StreamHandler, TextIO]] = []
+        self._original_handler_streams: list[tuple[logging.StreamHandler[TextIO], TextIO]] = []
 
     def __enter__(self) -> None:
         """Start teeing stdout, stderr, and logger streams."""

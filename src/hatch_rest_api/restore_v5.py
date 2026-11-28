@@ -31,7 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
     """Hatch Restore 3 sunrise alarm, sound machine and light."""
 
-    firmware_version: str = None
+    firmware_version: str | None = None
     volume: int = 0
 
     is_online: bool = False
@@ -48,11 +48,11 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
     clock_nighttime: int | None = None
     clock_daytime: int | None = None
     flags: int = 0
-    clock_turn_off_mode: str = None
-    clock_turn_off_at: str = None
-    clock_turn_on_at: str = None
-    clock_turn_dim_at: str = None
-    clock_turn_bright_at: str = None
+    clock_turn_off_mode: str | None = None
+    clock_turn_off_at: str | None = None
+    clock_turn_on_at: str | None = None
+    clock_turn_dim_at: str | None = None
+    clock_turn_bright_at: str | None = None
 
     def _update_local_state(self, state: dict[str, Any]) -> None:
         _LOGGER.debug("update local state: %s, %s", self.device_name, state)
@@ -106,7 +106,7 @@ class RestoreV5(ScheduledRoutineAlarmMixin, ShadowClientSubscriberMixin):
         _LOGGER.debug("new state:%s", self)
         self.publish_updates()
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> dict[str, Any]:  # type: ignore[override]  # ha_hatch diagnostics read this dict
         """Return the device state as a dictionary for debugging."""
         return {
             "device_name": self.device_name,

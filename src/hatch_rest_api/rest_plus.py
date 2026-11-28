@@ -19,21 +19,21 @@ _LOGGER = logging.getLogger(__name__)
 class RestPlus(ShadowClientSubscriberMixin):
     """Hatch Rest+ sound machine and night light."""
 
-    firmware_version: str = None
-    audio_track: RestPlusAudioTrack = None
+    firmware_version: str | None = None
+    audio_track: RestPlusAudioTrack | None = None
     volume: int = 0
 
-    is_on: bool = None
-    battery_level: int = None
-    is_online: bool = None
+    is_on: bool | None = None
+    battery_level: int | None = None
+    is_online: bool | None = None
 
-    red: int = None
-    green: int = None
-    blue: int = None
-    brightness: int = None
+    red: int | None = None
+    green: int | None = None
+    blue: int | None = None
+    brightness: int | None = None
 
-    color_random: bool = None
-    color_white: bool = None
+    color_random: bool | None = None
+    color_white: bool | None = None
 
     def _update_local_state(self, state: dict[str, Any]) -> None:
         _LOGGER.debug("update local state: %s, %s", self.device_name, state)
@@ -75,9 +75,9 @@ class RestPlus(ShadowClientSubscriberMixin):
     @property
     def is_playing(self) -> bool:
         """Whether the device is on and a sound track is selected."""
-        return self.is_on and self.audio_track != RestPlusAudioTrack.NONE
+        return bool(self.is_on) and self.audio_track != RestPlusAudioTrack.NONE
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> dict[str, Any]:  # type: ignore[override]  # ha_hatch diagnostics read this dict
         """Return the device state as a dictionary for debugging."""
         return {
             "device_name": self.device_name,

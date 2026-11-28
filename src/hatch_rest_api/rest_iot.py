@@ -28,15 +28,15 @@ _LOGGER = logging.getLogger(__name__)
 class RestIot(ShadowClientSubscriberMixin):
     """Hatch Rest 2nd gen sound machine and night light."""
 
-    audio_track: RIoTAudioTrack = None
-    firmware_version: str = None
+    audio_track: RIoTAudioTrack | None = None
+    firmware_version: str | None = None
     volume: int = 0
 
     is_online: bool = False
     current_playing: str = "none"
     current_id: int = 0
     current_step: int = 0
-    battery_level: int = None
+    battery_level: int | None = None
     color_id: int = NO_COLOR_ID
     sound_id: int = NO_SOUND_ID
     red: int = 0
@@ -44,13 +44,13 @@ class RestIot(ShadowClientSubscriberMixin):
     blue: int = 0
     white: int = 0
     brightness: int = 0
-    charging_status: int = (
+    charging_status: int | None = (
         None  # Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base
     )
-    clock: int = None
-    flags: int = None
+    clock: int | None = None
+    flags: int = 0
     toddler_lock: bool = False
-    toddler_lock_mode: str = None
+    toddler_lock_mode: str | None = None
 
     def _update_local_state(self, state: dict[str, Any]) -> None:
         _LOGGER.debug("update local state: %s, %s", self.device_name, state)
@@ -102,7 +102,7 @@ class RestIot(ShadowClientSubscriberMixin):
         _LOGGER.debug("new state:%s", self)
         self.publish_updates()
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> dict[str, Any]:  # type: ignore[override]  # ha_hatch diagnostics read this dict
         """Return the device state as a dictionary for debugging."""
         return {
             "device_name": self.device_name,
@@ -230,7 +230,13 @@ class RestIot(ShadowClientSubscriberMixin):
 
         sound_url_map = RIoTAudioTrack.sound_url_map()
         # update the map with any changes from the API
-        sound_url_map.update({sound.get("id"): sound.get("wavUrl") for sound in self.sounds})
+        sound_url_map.update(
+            {
+                sound_id: wav_url
+                for sound in self.sounds
+                if (sound_id := sound.get("id")) and (wav_url := sound.get("wavUrl"))
+            }
+        )
         _LOGGER.debug("Available Sounds: %s", sound_url_map)
         self._update(
             {
