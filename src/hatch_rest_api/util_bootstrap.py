@@ -35,6 +35,7 @@ from .scheduled_routine import (
     ScheduledRoutineAlarmMixin,
 )
 from .types import SimpleSoundContent, SoundContent
+from .util import clean_for_logging
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -179,7 +180,7 @@ async def get_rest_devices(
         identityId=aws_token["identityId"],
         aws_token=aws_token["token"],
     )
-    _LOGGER.debug("AWS credentials: %s", aws_credentials)
+    _LOGGER.debug("AWS credentials: %s", clean_for_logging(aws_credentials))
     credentials_provider = AwsCredentialsProvider.new_static(
         aws_credentials["Credentials"]["AccessKeyId"],
         aws_credentials["Credentials"]["SecretKey"],
