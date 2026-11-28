@@ -2,7 +2,7 @@
 
 from enum import Enum
 
-VERSION: str = "1.42.0"
+VERSION: str = "1.42.1"
 
 SENSITIVE_FIELD_NAMES = [
     "username",
