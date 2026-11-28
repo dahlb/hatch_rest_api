@@ -67,11 +67,11 @@ async def main() -> None:
                 device.register_callback(lambda: print("updated"))
 
                 if isinstance(device, RestIot):
-                    # Device commands block on the MQTT publish, so run them in a thread.
-                    await asyncio.to_thread(device.set_volume, 30)
+                    # Sends the command without blocking the event loop.
+                    await device.async_command(device.set_volume, 30)
         finally:
             for device in devices:
-                await asyncio.to_thread(device.unsubscribe)
+                await device.async_unsubscribe()
             await asyncio.to_thread(lambda: mqtt_connection.disconnect().result())
 
 
@@ -97,9 +97,20 @@ useful for diagnostics; `str(device)` prints the same.
 ### Sending commands
 
 Commands such as `set_volume()`, `set_color()`, `set_audio_track()`, `set_clock()` and
-`set_favorite()` publish a desired-state update to the device's shadow. They are
-synchronous and wait up to 10 seconds for MQTT to acknowledge the publish, so in async
-code run them with `asyncio.to_thread()` or your framework's executor. The new state
+`set_favorite()` publish a desired-state update to the device's shadow. Called directly
+they are synchronous and block for up to 10 seconds while MQTT acknowledges the publish.
+
+In async code, run any command with `async_command()` instead. It runs the command's
+logic, then publishes its updates and awaits the acknowledgements without blocking the
+event loop or using a thread:
+
+```python
+await device.async_command(device.set_color, 255, 0, 0, brightness=50)
+await device.async_command(device.set_favorite, "Bedtime-101")
+```
+
+The arguments are type-checked against the command. `async_refresh()` and
+`async_unsubscribe()` are the async forms of `refresh()` and `unsubscribe()`. The new state
 arrives back through the shadow and triggers your callbacks.
 
 Alarm methods, such as `refresh_alarms()` and `set_alarm_enabled()`, go through the Hatch

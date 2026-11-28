@@ -56,6 +56,10 @@ scripts/                      setup, lint, test, live_smoke_test helpers
   detects features with `isinstance` and `hasattr`, so the device classes stay siblings and
   must not gain attributes or methods (`tests/test_iot_device.py` checks this).
 - Devices with alarms also mix in `ScheduledRoutineAlarmMixin`.
+- Device commands stay synchronous and build their changes by calling `self._update(...)`.
+  `async_command(command, *args)` runs one with `_update` capturing those changes (through a
+  `ContextVar`), then awaits each publish with `asyncio.wrap_future`, so a new command works
+  from async code without an async copy. Keep commands free of other blocking calls.
 - Blocking MQTT/SDK futures are bounded by `MQTT_TIMEOUT`; blocking `awscrt` calls in async
   code go through `loop.run_in_executor` (see `util_bootstrap.py`).
 
