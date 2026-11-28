@@ -52,7 +52,7 @@ scripts/                      setup, lint, test, live_smoke_test helpers
 
 ## Environment and commands
 
-Python 3.14 is used for development and CI (`requires-python >= 3.12`).
+Python 3.14 is used for development and CI (`requires-python >= 3.14`).
 
 ```bash
 scripts/setup      # creates .venv with python3.14, installs `--group dev -e .`, installs prek hooks
