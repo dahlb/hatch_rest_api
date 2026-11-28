@@ -4,7 +4,7 @@ import asyncio
 from collections.abc import Callable
 import sys
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, ClassVar
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -62,6 +62,26 @@ class FakeAwsHttp:
                 "Expiration": 1780000000,
             }
         }
+
+
+class FakeContentful:
+    """Stands in for the Contentful client and records whether it was closed."""
+
+    instances: ClassVar[list[FakeContentful]] = []
+
+    def __init__(self, client_session: Any = None) -> None:
+        """Record the session it was given."""
+        self.client_session = client_session
+        self.closed = False
+        FakeContentful.instances.append(self)
+
+    async def graphql_query(self, **kwargs: Any) -> dict[str, Any]:
+        """Return an empty sound collection."""
+        return {"soundCollection": {"items": []}}
+
+    async def cleanup_client_session(self) -> None:
+        """Record that the session was closed."""
+        self.closed = True
 
 
 class FakeShadowClient:
@@ -136,7 +156,7 @@ def _run_bootstrap(
 
     with (
         patch.object(util_bootstrap, "Hatch", FakeHatch),
-        patch.object(util_bootstrap, "Contentful", MagicMock()),
+        patch.object(util_bootstrap, "Contentful", FakeContentful),
         patch.object(util_bootstrap, "AwsHttp", FakeAwsHttp),
         patch.object(util_bootstrap, "AwsCredentialsProvider", MagicMock()),
         patch.object(util_bootstrap, "io", io_mock),
@@ -366,7 +386,7 @@ def _bootstrap_devices(api: RestoreHatch) -> list[Any]:
     """Run get_rest_devices against the prepared client ``api``; return its devices."""
     with (
         patch.object(util_bootstrap, "Hatch", lambda *a, **kw: api),
-        patch.object(util_bootstrap, "Contentful", MagicMock()),
+        patch.object(util_bootstrap, "Contentful", FakeContentful),
         patch.object(util_bootstrap, "AwsHttp", FakeAwsHttp),
         patch.object(util_bootstrap, "AwsCredentialsProvider", MagicMock()),
         patch.object(util_bootstrap, "io", MagicMock()),
@@ -457,3 +477,50 @@ class GetRestDevicesRestoreAlarmsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GetRestDevicesContentfulSessionTest(unittest.TestCase):
+    """get_rest_devices closes the Contentful session it opened, and only that one."""
+
+    def setUp(self) -> None:
+        """Forget Contentful clients from earlier tests."""
+        FakeContentful.instances.clear()
+
+    def _run(self, client_session: Any = None) -> None:
+        with (
+            patch.object(util_bootstrap, "Hatch", FakeHatch),
+            patch.object(util_bootstrap, "Contentful", FakeContentful),
+            patch.object(util_bootstrap, "AwsHttp", FakeAwsHttp),
+            patch.object(util_bootstrap, "AwsCredentialsProvider", MagicMock()),
+            patch.object(util_bootstrap, "io", MagicMock()),
+            patch.object(util_bootstrap, "IotShadowClient", lambda *a, **kw: FakeShadowClient()),
+            patch.object(util_bootstrap, "websockets_with_default_aws_signing", MagicMock()),
+        ):
+            asyncio.run(
+                util_bootstrap.get_rest_devices(
+                    email="user@example.com", password="hunter2", client_session=client_session
+                )
+            )
+
+    def test_closes_its_own_session(self) -> None:
+        """Without a caller's session, the Contentful session is closed afterwards."""
+        self._run()
+        assert [c.closed for c in FakeContentful.instances] == [True]
+
+    def test_leaves_the_callers_session_open(self) -> None:
+        """A session the caller passed in is not closed."""
+        session = MagicMock()
+        self._run(client_session=session)
+        assert [(c.client_session, c.closed) for c in FakeContentful.instances] == [
+            (session, False)
+        ]
+
+    def test_closes_its_session_when_the_sound_fetch_fails(self) -> None:
+        """The session is closed even if fetching sounds raises."""
+        failing_fetch = MagicMock(side_effect=ClientError("boom"))
+        with (
+            patch.object(util_bootstrap, "_get_sound_content_for_all_v2_devices", failing_fetch),
+            pytest.raises(ClientError),
+        ):
+            self._run()
+        assert [c.closed for c in FakeContentful.instances] == [True]

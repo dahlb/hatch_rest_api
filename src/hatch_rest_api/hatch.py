@@ -106,8 +106,10 @@ class Hatch:
             headers["X-HatchBaby-Auth"] = auth_token
         return await self.api_session.post(url=url, json=json_body, headers=headers)
 
-    @request_with_logging
+    # Logging runs inside the error handling, as for POST, so a failed response is
+    # logged before it raises.
     @request_with_logging_and_errors
+    @request_with_logging
     async def _get_request_with_logging_and_errors_raised(
         self, url: str, auth_token: str | None = None, params: dict[str, Any] | None = None
     ) -> ClientResponse:

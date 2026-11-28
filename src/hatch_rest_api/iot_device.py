@@ -10,9 +10,15 @@ must not give a device an attribute or method it didn't have.
 """
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from .const import CUSTOM_COLOR_ID, NO_COLOR_ID, NO_SOUND_ID, RIOT_FLAGS_CLOCK_ON
+from .const import (
+    CUSTOM_COLOR_ID,
+    NO_COLOR_ID,
+    NO_SOUND_ID,
+    RIOT_FLAGS_CLOCK_24_HOUR,
+    RIOT_FLAGS_CLOCK_ON,
+)
 from .shadow_client_subscriber import ShadowClientSubscriberMixin
 from .types import SimpleSoundContent, SoundContent
 from .util import (
@@ -110,7 +116,7 @@ class IotDevice(ShadowClientSubscriberMixin):
     @property
     def is_clock_on(self) -> bool:
         """Whether the clock display is on."""
-        return self.flags is not None and bool(self.flags & RIOT_FLAGS_CLOCK_ON)
+        return bool(self.flags & RIOT_FLAGS_CLOCK_ON)
 
     def favorite_names(self, active_only: bool = False) -> list[str]:
         """Return favorites as ``name-id`` strings.
@@ -273,3 +279,85 @@ class IotSoundDevice(IotDevice):
                 }
             }
         )
+
+
+class IotRestDevice(IotSoundDevice):
+    """The Rest family's (RestIot and RestBaby) battery, toddler lock and favorite progress.
+
+    Subclasses that extend ``_update_device_state`` call ``super()`` first.
+    """
+
+    current_id: int = 0
+    current_step: int = 0
+    battery_level: int | None = None
+    charging_status: int | None = (
+        None  # Expected values: 0= Not Charging, 3= Charging, plugged in, 5= Charging, on base
+    )
+    clock: int | None = None
+    toddler_lock: bool = False
+    toddler_lock_mode: str | None = None
+
+    def _update_device_state(self, state: dict[str, Any]) -> None:
+        if safely_get_json_value(state, "deviceInfo.b") is not None:
+            self.battery_level = safely_get_json_value(state, "deviceInfo.b", int)
+        if safely_get_json_value(state, "deviceInfo.powerStatus") is not None:
+            self.charging_status = safely_get_json_value(state, "deviceInfo.powerStatus", int)
+        if safely_get_json_value(state, "toddlerLockOn") is not None:
+            self.toddler_lock = safely_get_json_value(state, "toddlerLockOn", bool)
+        if safely_get_json_value(state, "toddlerLock.turnOnMode") is not None:
+            self.toddler_lock_mode = safely_get_json_value(state, "toddlerLock.turnOnMode", str)
+        if safely_get_json_value(state, "current.srId") is not None:
+            self.current_id = safely_get_json_value(state, "current.srId")
+        if safely_get_json_value(state, "current.step") is not None:
+            self.current_step = safely_get_json_value(state, "current.step")
+        if safely_get_json_value(state, "clock.i") is not None:
+            self.clock = convert_to_percentage(safely_get_json_value(state, "clock.i", int))
+
+    def _sound_url_command_extras(self) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Return extra ``current`` and ``sound`` fields a device sends with a sound URL."""
+        return {}, {}
+
+    def set_toddler_lock(self, on: bool) -> None:
+        """Turn the toddler lock on (mode ``always``) or off (mode ``never``).
+
+        The API also supports a ``custom`` mode for a time range, which is not exposed here.
+        """
+        _LOGGER.debug("Setting toddler lock: %s", on)
+        mode = "always" if on else "never"
+        self._update({"toddlerLock": {"turnOnMode": mode}})
+
+    def set_sound_url(
+        self,
+        sound_url: str = "http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3",
+    ) -> None:
+        """Appears to work with some but not all public wav and mp3 urls.
+
+        i.e. http://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/theme_01.mp3
+        """
+        _LOGGER.debug("Setting sound URL: %s", sound_url)
+        current_extras, sound_extras = self._sound_url_command_extras()
+        self._update(
+            {
+                "current": {
+                    "playing": "remote",
+                    **current_extras,
+                    "sound": {"mute": False, "url": sound_url, **sound_extras},
+                }
+            }
+        )
+
+
+class Clock24HourMixin:
+    """``is_clock_24h`` for the devices that report a 24-hour clock flag.
+
+    RestIot, RestoreIot and RestoreV5 have it; RestBaby doesn't. List it before
+    the ``IotDevice`` base.
+    """
+
+    if TYPE_CHECKING:
+        flags: int
+
+    @property
+    def is_clock_24h(self) -> bool:
+        """Whether the clock displays 24-hour time."""
+        return bool(self.flags & RIOT_FLAGS_CLOCK_24_HOUR)

@@ -7,18 +7,17 @@ from typing import Any
 from .const import (
     CLOCK_TURN_OFF_MODE_ALWAYS,
     CLOCK_TURN_OFF_MODES,
-    RIOT_FLAGS_CLOCK_24_HOUR,
     RIOT_FLAGS_CLOCK_IGNORE_TAP,
     RIOT_FLAGS_CLOCK_ON,
 )
-from .iot_device import IotSoundDevice
+from .iot_device import Clock24HourMixin, IotSoundDevice
 from .scheduled_routine import ScheduledRoutineAlarmMixin
 from .util import safely_get_json_value
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class RestoreV5(ScheduledRoutineAlarmMixin, IotSoundDevice):
+class RestoreV5(ScheduledRoutineAlarmMixin, Clock24HourMixin, IotSoundDevice):
     """Hatch Restore 3 sunrise alarm, sound machine and light."""
 
     _scale_white = True
@@ -84,11 +83,6 @@ class RestoreV5(ScheduledRoutineAlarmMixin, IotSoundDevice):
             "is_clock_on": self.is_clock_on,
             "is_clock_24h": self.is_clock_24h,
         }
-
-    @property
-    def is_clock_24h(self) -> bool:
-        """Whether the clock displays 24-hour time."""
-        return self.flags is not None and bool(self.flags & RIOT_FLAGS_CLOCK_24_HOUR)
 
     @property
     def clock(self) -> int:

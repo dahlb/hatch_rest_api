@@ -23,7 +23,8 @@ src/hatch_rest_api/
   contentful.py               Contentful GraphQL client (Restore sound catalog)
   util_bootstrap.py           get_rest_devices(): login -> discover -> MQTT connect -> device objects
   shadow_client_subscriber.py ShadowClientSubscriberMixin: base for all devices, syncs the shadow
-  iot_device.py               IotDevice / IotSoundDevice: shared light, sound, clock and favorites
+  iot_device.py               IotDevice and its IotSoundDevice / IotRestDevice / Clock24HourMixin
+                              extensions: shared light, sound, clock and favorites
                               code for RestIot, RestBaby, RestoreIot and RestoreV5 (and RestoreV4)
   callbacks.py                CallbacksMixin: state-change callback registration
   scheduled_routine.py        Alarm (scheduled routine) helpers and ScheduledRoutineAlarmMixin
@@ -51,7 +52,9 @@ scripts/                      setup, lint, test, live_smoke_test helpers
 - RestIot, RestBaby, RestoreIot and RestoreV5 share the `current` / `clock` shadow layout
   and subclass `IotDevice` (`iot_device.py`), which reads the shared shadow fields and holds
   the shared commands. A subclass reads its own extra fields in `_update_device_state(state)`.
-  `IotSoundDevice` adds `set_sound` for the classes that have it (not RestoreIot). Only put a
+  `IotSoundDevice` adds `set_sound` for the classes that have it (not RestoreIot),
+  `IotRestDevice` adds the Rest family's battery, toddler lock and `set_sound_url` (RestIot
+  and RestBaby), and `Clock24HourMixin` adds `is_clock_24h` (not RestBaby). Only put a
   member on these bases if every subclass already has it: the Home Assistant integration
   detects features with `isinstance` and `hasattr`, so the device classes stay siblings and
   must not gain attributes or methods (`tests/test_iot_device.py` checks this).
