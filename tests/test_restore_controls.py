@@ -290,10 +290,10 @@ class RestoreMiscTest(unittest.TestCase):
         device.routines = None
         assert device.routine_steps == []
 
-    def test_repr_has_the_new_views(self) -> None:
-        """Repr has the new views."""
+    def test_as_dict_has_the_new_views(self) -> None:
+        """as_dict has the new views."""
         device, _ = _restore()
-        representation = device.__repr__()
+        representation = device.as_dict()
         for key in (
             "is_light_on",
             "is_sound_on",

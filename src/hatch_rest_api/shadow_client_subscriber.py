@@ -36,6 +36,28 @@ class ShadowClientSubscriberMixin(CallbacksMixin):
         # Implemented by every device subclass.
         def _update_local_state(self, state: dict[str, Any]) -> None: ...
 
+    def as_dict(self) -> dict[str, Any]:
+        """Return the device state as a dictionary, for diagnostics and debugging.
+
+        Device classes extend this with their own state.
+        """
+        return {
+            "device_name": self.device_name,
+            "thing_name": self.thing_name,
+            "mac": self.mac,
+            "document_version": self.document_version,
+        }
+
+    def __repr__(self) -> str:
+        """Return a short description naming the device."""
+        device_name = getattr(self, "device_name", None)
+        thing_name = getattr(self, "thing_name", None)
+        return f"<{type(self).__name__} device_name={device_name!r} thing_name={thing_name!r}>"
+
+    def __str__(self) -> str:
+        """Return the device state as a string."""
+        return str(self.as_dict())
+
     def __init__(
         self,
         device_name: str,

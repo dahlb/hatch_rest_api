@@ -319,8 +319,8 @@ class Restore(ShadowClientSubscriberMixin):
         _LOGGER.debug("new state:%s", self)
         self.publish_updates()
 
-    def __repr__(self) -> dict[str, Any]:  # type: ignore[override]  # ha_hatch diagnostics read this dict
-        """Return the device state as a dictionary for debugging."""
+    def as_dict(self) -> dict[str, Any]:
+        """Return the device state as a dictionary, for diagnostics and debugging."""
         return {
             "device_name": self.device_name,
             "thing_name": self.thing_name,
@@ -340,10 +340,6 @@ class Restore(ShadowClientSubscriberMixin):
             "alarm_api_url": self.alarm_api_url,
             "shadow_state": self.shadow_state,
         }
-
-    def __str__(self) -> str:
-        """Return the device state as a string."""
-        return f"{self.__repr__()}"
 
     # ---- read-only views ----------------------------------------------------
 

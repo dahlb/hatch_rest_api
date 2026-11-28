@@ -77,8 +77,8 @@ class RestPlus(ShadowClientSubscriberMixin):
         """Whether the device is on and a sound track is selected."""
         return bool(self.is_on) and self.audio_track != RestPlusAudioTrack.NONE
 
-    def __repr__(self) -> dict[str, Any]:  # type: ignore[override]  # ha_hatch diagnostics read this dict
-        """Return the device state as a dictionary for debugging."""
+    def as_dict(self) -> dict[str, Any]:
+        """Return the device state as a dictionary, for diagnostics and debugging."""
         return {
             "device_name": self.device_name,
             "thing_name": self.thing_name,
@@ -96,10 +96,6 @@ class RestPlus(ShadowClientSubscriberMixin):
             "brightness": self.brightness,
             "document_version": self.document_version,
         }
-
-    def __str__(self) -> str:
-        """Return the device state as a string."""
-        return f"{self.__repr__()}"
 
     def set_volume(self, percentage: int) -> None:
         """Set the volume as a 0-100 percentage."""

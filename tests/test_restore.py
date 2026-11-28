@@ -233,9 +233,9 @@ class RestoreStateTest(unittest.TestCase):
         self.client.report_update({"content": {"playing": "none"}})
         listener.assert_called_once_with()
 
-    def test_repr_is_a_dict_with_the_raw_state(self) -> None:
-        """Repr is a dict with the raw state."""
-        representation = self.device.__repr__()
+    def test_as_dict_has_the_raw_state(self) -> None:
+        """as_dict is a dict with the raw state."""
+        representation = self.device.as_dict()
         assert isinstance(representation, dict)
         assert representation["shadow_state"] == FULL_STATE
         for attribute, _, _ in RESTORE_STATE_FIELDS:
